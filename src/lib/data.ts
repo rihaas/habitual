@@ -19,7 +19,8 @@ export const initialHabits: Habit[] = [
     id: '2',
     name: 'Morning workout',
     priority: 'High',
-    frequency: 'Daily',
+    frequency: 'Custom',
+    days: ['Mon', 'Wed', 'Fri'],
     completed: {
       [format(subDays(new Date(), 1), 'yyyy-MM-dd')]: true,
       [format(subDays(new Date(), 3), 'yyyy-MM-dd')]: false,

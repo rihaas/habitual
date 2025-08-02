@@ -26,16 +26,30 @@ import {
 } from '@/components/ui/select';
 import { PlusCircle } from 'lucide-react';
 import type { Habit } from '@/lib/types';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Habit name must be at least 2 characters.' }).max(50),
-  frequency: z.enum(['Daily', 'Weekly']),
+  frequency: z.enum(['Daily', 'Weekly', 'Custom']),
   priority: z.enum(['High', 'Medium', 'Low']),
+  days: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).optional(),
+}).refine(data => {
+    if (data.frequency === 'Custom' && (!data.days || data.days.length === 0)) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Please select at least one day for custom frequency.",
+    path: ["days"],
 });
+
 
 type AddHabitDialogProps = {
   addHabit: (habit: Omit<Habit, 'id' | 'completed'>) => void;
 };
+
+const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
 
 export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -46,11 +60,23 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
       name: '',
       frequency: 'Daily',
       priority: 'Medium',
+      days: [],
     },
   });
 
+  const frequency = form.watch('frequency');
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    addHabit(values);
+    const habitData: Omit<Habit, 'id' | 'completed'> = {
+      name: values.name,
+      priority: values.priority,
+      frequency: values.frequency,
+    };
+    if (values.frequency === 'Custom') {
+      habitData.days = values.days;
+    }
+
+    addHabit(habitData);
     form.reset();
     setIsOpen(false);
   }
@@ -101,12 +127,38 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
                       <SelectContent>
                         <SelectItem value="Daily">Daily</SelectItem>
                         <SelectItem value="Weekly">Weekly</SelectItem>
+                        <SelectItem value="Custom">Specific Days</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {frequency === 'Custom' && (
+                 <FormField
+                    control={form.control}
+                    name="days"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>On these days</FormLabel>
+                         <ToggleGroup 
+                            type="multiple"
+                            variant="outline"
+                            className="grid grid-cols-4 gap-2"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                         >
+                            {weekDays.map(day => (
+                                <ToggleGroupItem key={day} value={day}>{day}</ToggleGroupItem>
+                            ))}
+                         </ToggleGroup>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              )}
+
               <FormField
                 control={form.control}
                 name="priority"

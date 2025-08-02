@@ -12,14 +12,16 @@ interface ProgressTrackerProps {
   selectedDate: Date;
 }
 
+const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
 export function ProgressTracker({ habits, selectedDate }: ProgressTrackerProps) {
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
+  const dayOfWeek = dayMap[selectedDate.getDay()];
   
   const applicableHabits = habits.filter(h => {
-    // This logic should match HabitList's filtering logic
     if (h.frequency === 'Daily') return true;
-    // A more complex logic for weekly would be needed for accuracy
     if (h.frequency === 'Weekly') return true; 
+    if (h.frequency === 'Custom' && h.days?.includes(dayOfWeek)) return true;
     return false;
   });
 

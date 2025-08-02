@@ -55,7 +55,6 @@ export default function DashboardPage() {
   
   const completedHabitsToday = habits.filter(h => h.completed[format(selectedDate || new Date(), "yyyy-MM-dd")]).map(h => h.name).join(', ');
 
-  const dailyHabits = habits.filter(h => h.frequency === 'Daily');
   const weeklyHabits = habits.filter(h => h.frequency === 'Weekly');
 
   return (
@@ -74,7 +73,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="flex-1 space-y-6">
               <DailyHabitList
-                habits={dailyHabits}
+                habits={habits}
                 selectedDate={selectedDate || new Date()}
                 toggleHabitCompletion={toggleHabitCompletion}
                 deleteHabit={deleteHabit}

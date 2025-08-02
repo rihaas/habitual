@@ -1,146 +1,236 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Target, CheckCircle, Mail } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { sendSignInLink } from '@/app/auth/actions';
-import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import * as React from "react";
+import { addDays, format, startOfWeek } from "date-fns";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { AppHeader } from "@/components/Header";
+import { DailyHabitList } from "@/components/DailyHabitList";
+import { AddHabitDialog } from "@/components/AddHabitDialog";
+import { ProgressTracker } from "@/components/ProgressTracker";
+import { AiSuggestionDialog } from "@/components/AiSuggestionDialog";
+import type { Habit } from "@/lib/types";
+import { initialHabits } from "@/lib/data";
+import { GamificationTracker } from "@/components/GamificationTracker";
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
+import { HabitPacksDialog } from "@/components/HabitPacksDialog";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Package } from "lucide-react";
+
+const POINTS_PER_HABIT = 10;
+const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
+
+export default function DashboardPage() {
+  const [habits, setHabits] = React.useState<Habit[]>(initialHabits);
+  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date());
+  const [level, setLevel] = React.useState(1);
+  const [points, setPoints] = React.useState(0);
+  const [pointsToNextLevel, setPointsToNextLevel] = React.useState(getPointsForNextLevel(1));
+  const [recentlyCompletedHabit, setRecentlyCompletedHabit] = React.useState<string | null>(null);
+
+  // Define sensors for DndContext
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
 
-const GoogleIcon = () => (
-  <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
-    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
-    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
-    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
-    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C43.021,36.251,44,30.651,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
-  </svg>
-);
+  const addHabit = (habit: Omit<Habit, "id" | "completed">) => {
+    const newHabit: Habit = {
+      ...habit,
+      id: crypto.randomUUID(),
+      completed: {},
+    };
+    setHabits((prev) => [...prev, newHabit]);
+  };
 
-const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-});
+  const addHabitPack = (packHabits: Omit<Habit, "id" | "completed">[]) => {
+    const newHabits = packHabits.map(habit => ({
+        ...habit,
+        id: crypto.randomUUID(),
+        completed: {}
+    }));
+    setHabits(prev => [...prev, ...newHabits]);
+  }
 
-export default function LoginPage() {
-  const { toast } = useToast();
-  const router = useRouter();
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { email: '' },
-  });
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const deleteHabit = (habitId: string) => {
+    setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
+  };
 
-  const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-      router.push('/dashboard');
-    } catch (error) {
-      toast({
-        title: 'Authentication Error',
-        description: 'Failed to sign in with Google. Please try again.',
-        variant: 'destructive',
+  const updateHabit = (updatedHabit: Omit<Habit, "completed">) => {
+    setHabits((prevHabits) =>
+      prevHabits.map((habit) =>
+        habit.id === updatedHabit.id ? { ...habit, ...updatedHabit } : habit
+      )
+    );
+  };
+  
+  const isHabitCompleted = (habit: Habit, date: Date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    const progress = habit.completed[dateKey];
+    if (progress === undefined) return false;
+    if (habit.trackingType === 'Checkbox') {
+      return progress === 1;
+    }
+    if (habit.trackingType === 'Quantitative' && habit.goalValue) {
+      return progress >= habit.goalValue;
+    }
+    return false;
+  };
+  
+  const handlePointsUpdate = (wasCompleted: boolean, isNowCompleted: boolean, habitId: string) => {
+    if (!wasCompleted && isNowCompleted) {
+        setPoints(p => {
+            const newPoints = p + POINTS_PER_HABIT;
+            if (newPoints >= pointsToNextLevel) {
+                const newLevel = level + 1;
+                setLevel(newLevel);
+                setPointsToNextLevel(getPointsForNextLevel(newLevel));
+            }
+            return newPoints;
+        });
+        setRecentlyCompletedHabit(habitId);
+        setTimeout(() => setRecentlyCompletedHabit(null), 1500);
+    } else if (wasCompleted && !isNowCompleted) {
+        setPoints(p => Math.max(0, p - POINTS_PER_HABIT));
+    }
+  }
+
+  const toggleHabitCompletion = (habitId: string, date: Date) => {
+    const dateKey = format(date, "yyyy-MM-dd");
+    setHabits((prevHabits) => {
+      const habit = prevHabits.find(h => h.id === habitId);
+      if (!habit) return prevHabits;
+      
+      const wasCompleted = isHabitCompleted(habit, date);
+      
+      const newHabits = prevHabits.map((h) => {
+        if (h.id === habitId) {
+          const newCompleted = { ...h.completed };
+          newCompleted[dateKey] = newCompleted[dateKey] === 1 ? 0 : 1;
+          return { ...h, completed: newCompleted };
+        }
+        return h;
+      });
+
+      const updatedHabit = newHabits.find(h => h.id === habitId)!;
+      const isNowCompleted = isHabitCompleted(updatedHabit, date);
+      handlePointsUpdate(wasCompleted, isNowCompleted, habitId);
+
+      return newHabits;
+    });
+  };
+  
+  const updateHabitProgress = (habitId: string, date: Date, progress: number) => {
+    const dateKey = format(date, "yyyy-MM-dd");
+    setHabits((prevHabits) => {
+      const habit = prevHabits.find(h => h.id === habitId);
+      if (!habit) return prevHabits;
+
+      const wasCompleted = isHabitCompleted(habit, date);
+
+      const newHabits = prevHabits.map((h) => {
+        if (h.id === habitId) {
+          const newCompleted = { ...h.completed };
+          newCompleted[dateKey] = progress;
+          return { ...h, completed: newCompleted };
+        }
+        return h;
+      });
+
+      const updatedHabit = newHabits.find(h => h.id === habitId)!;
+      const isNowCompleted = isHabitCompleted(updatedHabit, date);
+      handlePointsUpdate(wasCompleted, isNowCompleted, habitId);
+      
+      return newHabits;
+    });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setHabits((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
       });
     }
   };
 
-  const handleEmailSignIn = async (values: z.infer<typeof formSchema>) => {
-    setIsSubmitting(true);
-    try {
-      await sendSignInLink(values.email);
-      toast({
-        title: 'Check your email',
-        description: `We've sent a sign-in link to ${values.email}.`,
-      });
-      // Store email in local storage to retrieve after redirect
-      window.localStorage.setItem('emailForSignIn', values.email);
-      form.reset();
-    } catch (error: any) {
-        toast({
-            title: 'Authentication Error',
-            description: error.message || 'An unexpected error occurred.',
-            variant: 'destructive',
-          });
-    } finally {
-        setIsSubmitting(false);
-    }
-  };
-
+  const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 font-body">
-      <div className="absolute top-0 left-0 w-full h-full bg-primary/10 blur-3xl -z-10"></div>
-      <Card className="w-full max-w-md shadow-2xl shadow-primary/10">
-        <CardHeader className="text-center">
-          <div className="flex justify-center items-center gap-2 mb-4">
-            <Target className="h-10 w-10 text-primary" />
-            <h1 className="text-4xl font-headline font-bold text-gray-800">
-              Habitual
-            </h1>
-          </div>
-          <CardTitle className="text-2xl font-semibold">Welcome</CardTitle>
-          <CardDescription>
-            Sign in or create an account to start your journey.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Button onClick={handleGoogleSignIn} className="w-full" size="lg">
-              <GoogleIcon />
-              Continue with Google
-            </Button>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleEmailSignIn)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email Address</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} id="habit-dnd-root">
+        <div className="flex min-h-screen w-full flex-col bg-background font-body">
+        <AppHeader />
+        <main className="flex-1 p-4 sm:p-6 md:p-8 grid gap-8 lg:grid-cols-5">
+            <div className="lg:col-span-3 flex flex-col gap-8">
+            <Card className="flex-1 flex flex-col">
+                <CardHeader>
+                <CardTitle className="font-headline text-2xl">
+                    {format(selectedDate || new Date(), "eeee, MMMM do")}
+                </CardTitle>
+                <CardDescription>
+                    What will you accomplish today?
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-6">
+                <DailyHabitList
+                    habits={habits}
+                    selectedDate={selectedDate || new Date()}
+                    toggleHabitCompletion={toggleHabitCompletion}
+                    updateHabitProgress={updateHabitProgress}
+                    deleteHabit={deleteHabit}
+                    updateHabit={updateHabit}
+                    recentlyCompletedHabit={recentlyCompletedHabit}
                 />
-                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-                   <Mail className="mr-2 h-4 w-4" />
-                   {isSubmitting ? "Sending link..." : "Continue with Email"}
-                </Button>
-              </form>
-            </Form>
-          </div>
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>By continuing, you agree to our Terms of Service.</p>
-          </div>
-        </CardContent>
-      </Card>
-      <footer className="mt-8 text-center text-muted-foreground">
-        <div className="flex items-center justify-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            <p>Build better habits. Build a better you.</p>
+                </CardContent>
+                <CardFooter>
+                <AddHabitDialog addHabit={addHabit} />
+                </CardFooter>
+            </Card>
+            
+            </div>
+            <div className="lg:col-span-2 flex flex-col gap-8">
+            <Card>
+                <CardContent className="p-2">
+                <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    className="rounded-md"
+                />
+                </CardContent>
+            </Card>
+            <GamificationTracker level={level} points={points} pointsToNextLevel={pointsToNextLevel} />
+            <ProgressTracker habits={habits} selectedDate={selectedDate || new Date()} />
+            <Card>
+                <CardHeader>
+                <CardTitle className="font-headline">Need Inspiration?</CardTitle>
+                <CardDescription>Get AI-powered suggestions or try a habit pack.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col sm:flex-row gap-2">
+                  <AiSuggestionDialog addHabit={addHabit} completedHabits={completedHabitsToday}>
+                     <Button variant="outline" className="w-full">
+                        <Sparkles className="mr-2 h-4 w-4 text-yellow-500" />
+                        AI Suggestions
+                      </Button>
+                  </AiSuggestionDialog>
+                  <HabitPacksDialog addHabitPack={addHabitPack}>
+                     <Button variant="outline" className="w-full">
+                        <Package className="mr-2 h-4 w-4 text-blue-500" />
+                        Habit Packs
+                      </Button>
+                  </HabitPacksDialog>
+                </CardContent>
+            </Card>
+            </div>
+        </main>
         </div>
-      </footer>
-    </div>
+    </DndContext>
   );
 }

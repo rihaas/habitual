@@ -28,14 +28,18 @@ import { PlusCircle } from 'lucide-react';
 import type { Habit } from '@/lib/types';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { format } from 'date-fns';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Habit name must be at least 2 characters.' }).max(50),
-  frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
   priority: z.enum(['High', 'Medium', 'Low']),
+  frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
   days: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).optional(),
   timesPerWeek: z.coerce.number().min(1).max(7).optional(),
   interval: z.coerce.number().min(2).optional(),
+  trackingType: z.enum(['Checkbox', 'Quantitative']),
+  goalValue: z.coerce.number().min(1).optional(),
+  goalUnit: z.string().max(20).optional(),
 }).refine(data => {
     if (data.frequency === 'Custom' && (!data.days || data.days.length === 0)) {
         return false;
@@ -60,6 +64,14 @@ const formSchema = z.object({
 }, {
     message: "Please specify the interval in days.",
     path: ["interval"],
+}).refine(data => {
+    if (data.trackingType === 'Quantitative' && (!data.goalValue || !data.goalUnit)) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Goal and unit are required for quantitative tracking.",
+    path: ["goalValue"],
 });
 
 
@@ -68,7 +80,6 @@ type AddHabitDialogProps = {
 };
 
 const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-
 
 export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -80,16 +91,19 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
       frequency: 'Daily',
       priority: 'Medium',
       days: [],
+      trackingType: 'Checkbox',
     },
   });
 
   const frequency = form.watch('frequency');
+  const trackingType = form.watch('trackingType');
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const habitData: Omit<Habit, 'id' | 'completed'> = {
       name: values.name,
       priority: values.priority,
       frequency: values.frequency,
+      trackingType: values.trackingType,
     };
     if (values.frequency === 'Custom') {
       habitData.days = values.days;
@@ -100,6 +114,10 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
     if (values.frequency === 'Every-n-days') {
         habitData.interval = values.interval;
         habitData.startDate = format(new Date(), 'yyyy-MM-dd');
+    }
+    if (values.trackingType === 'Quantitative') {
+        habitData.goalValue = values.goalValue;
+        habitData.goalUnit = values.goalUnit;
     }
 
     addHabit(habitData);
@@ -115,7 +133,7 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
           Add New Habit
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-headline">Create a New Habit</DialogTitle>
           <DialogDescription>
@@ -123,7 +141,7 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-y-auto max-h-[70vh] p-1">
             <div className="space-y-4">
               <FormField
                 control={form.control}
@@ -138,6 +156,74 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                  control={form.control}
+                  name="trackingType"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>How to track?</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex space-x-4"
+                        >
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Checkbox" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Checkbox
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Quantitative" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Number
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {trackingType === 'Quantitative' && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="goalValue"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Goal</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min="1" placeholder="e.g., 8" {...field} />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="goalUnit"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Unit</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., glasses" {...field} />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <div className="col-span-2 -mt-2">
+                             <FormMessage>{form.formState.errors.goalValue?.message}</FormMessage>
+                         </div>
+                    </div>
+                )}
+
               <FormField
                 control={form.control}
                 name="frequency"

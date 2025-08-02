@@ -10,13 +10,14 @@ interface DailyHabitListProps {
   habits: Habit[];
   selectedDate: Date;
   toggleHabitCompletion: (habitId: string, date: Date) => void;
+  updateHabitProgress: (habitId: string, date: Date, progress: number) => void;
   deleteHabit: (habitId: string) => void;
   updateHabit: (habit: Omit<Habit, "completed">) => void;
 }
 
 const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, deleteHabit, updateHabit }: DailyHabitListProps) {
+export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit }: DailyHabitListProps) {
   
   const dayOfWeek = dayMap[selectedDate.getDay()];
 
@@ -29,19 +30,21 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, de
         return diff >= 0 && diff % h.interval === 0;
     }
     if (h.frequency === 'N-times-week' && h.timesPerWeek) {
-        // For N-times-week, we allow completing it any day of the week,
-        // but we need to check if it's already completed for the week.
         const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
         const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
         
         let completedInWeek = 0;
         for (let d = weekStart; d <= weekEnd; d.setDate(d.getDate() + 1)) {
             const dateKey = format(d, 'yyyy-MM-dd');
-            if (h.completed[dateKey]) {
-                completedInWeek++;
+            const progress = h.completed[dateKey];
+            if (progress !== undefined) {
+                if (h.trackingType === 'Checkbox' && progress === 1) {
+                    completedInWeek++;
+                } else if (h.trackingType === 'Quantitative' && h.goalValue && progress >= h.goalValue) {
+                    completedInWeek++;
+                }
             }
         }
-        // This habit is considered "daily" until the weekly goal is met.
         return completedInWeek < h.timesPerWeek;
     }
     return false;
@@ -66,6 +69,7 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, de
                         habit={habit}
                         selectedDate={selectedDate}
                         toggleHabitCompletion={toggleHabitCompletion}
+                        updateHabitProgress={updateHabitProgress}
                         deleteHabit={deleteHabit}
                         updateHabit={updateHabit}
                     />

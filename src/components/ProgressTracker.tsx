@@ -32,13 +32,24 @@ export function ProgressTracker({ habits, selectedDate }: ProgressTrackerProps) 
         const diff = differenceInDays(selectedDate, start);
         return diff >= 0 && diff % h.interval === 0;
       case 'N-times-week':
-        // N-times-week habits are always applicable to be shown in progress
-        // until they are completed for the week.
          return true;
       default:
         return false;
     }
   });
+
+  const isHabitCompleted = (habit: Habit, date: Date) => {
+    const key = format(date, 'yyyy-MM-dd');
+    const progress = habit.completed[key];
+    if (progress === undefined) return false;
+    if (habit.trackingType === 'Checkbox') {
+      return progress === 1;
+    }
+    if (habit.trackingType === 'Quantitative' && habit.goalValue) {
+      return progress >= habit.goalValue;
+    }
+    return false;
+  }
 
   const completedCount = applicableHabits.filter(h => {
       if (h.frequency === 'N-times-week' && h.timesPerWeek) {
@@ -46,14 +57,13 @@ export function ProgressTracker({ habits, selectedDate }: ProgressTrackerProps) 
         const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
         let completedInWeek = 0;
         for (let d = weekStart; d <= weekEnd; d.setDate(d.getDate() + 1)) {
-            const currentKey = format(d, 'yyyy-MM-dd');
-            if (h.completed[currentKey]) {
+            if (isHabitCompleted(h, d)) {
                 completedInWeek++;
             }
         }
         return completedInWeek >= h.timesPerWeek;
       }
-      return h.completed[dateKey]
+      return isHabitCompleted(h, selectedDate);
     }).length;
 
   const totalCount = applicableHabits.length;

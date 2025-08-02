@@ -9,7 +9,10 @@ export const HabitSchema = z.object({
   timesPerWeek: z.number().optional(),
   interval: z.number().optional(),
   startDate: z.string().optional(), // YYYY-MM-DD
-  completed: z.record(z.boolean()), // date string 'YYYY-MM-DD' as key
+  trackingType: z.enum(['Checkbox', 'Quantitative']).default('Checkbox'),
+  goalValue: z.number().optional(),
+  goalUnit: z.string().optional(),
+  completed: z.record(z.number()), // For Checkbox: 1 for true, 0 for false. For Quantitative: the actual value.
   category: z.string().optional(),
   color: z.string().optional(),
 });

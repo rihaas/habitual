@@ -45,7 +45,7 @@ export default function DashboardPage() {
       prevHabits.map((habit) => {
         if (habit.id === habitId) {
           const newCompleted = { ...habit.completed };
-          newCompleted[dateKey] = !newCompleted[dateKey];
+          newCompleted[dateKey] = newCompleted[dateKey] === 1 ? 0 : 1;
           return { ...habit, completed: newCompleted };
         }
         return habit;
@@ -53,7 +53,34 @@ export default function DashboardPage() {
     );
   };
   
-  const completedHabitsToday = habits.filter(h => h.completed[format(selectedDate || new Date(), "yyyy-MM-dd")]).map(h => h.name).join(', ');
+  const updateHabitProgress = (habitId: string, date: Date, progress: number) => {
+    const dateKey = format(date, "yyyy-MM-dd");
+    setHabits((prevHabits) =>
+      prevHabits.map((habit) => {
+        if (habit.id === habitId) {
+          const newCompleted = { ...habit.completed };
+          newCompleted[dateKey] = progress;
+          return { ...habit, completed: newCompleted };
+        }
+        return habit;
+      })
+    );
+  };
+
+  const isHabitCompleted = (habit: Habit, date: Date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    const progress = habit.completed[dateKey];
+    if (progress === undefined) return false;
+    if (habit.trackingType === 'Checkbox') {
+      return progress === 1;
+    }
+    if (habit.trackingType === 'Quantitative' && habit.goalValue) {
+      return progress >= habit.goalValue;
+    }
+    return false;
+  };
+
+  const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
 
   const weeklyHabits = habits.filter(h => h.frequency === 'Weekly');
 
@@ -76,6 +103,7 @@ export default function DashboardPage() {
                 habits={habits}
                 selectedDate={selectedDate || new Date()}
                 toggleHabitCompletion={toggleHabitCompletion}
+                updateHabitProgress={updateHabitProgress}
                 deleteHabit={deleteHabit}
                 updateHabit={updateHabit}
               />
@@ -83,6 +111,7 @@ export default function DashboardPage() {
                 habits={weeklyHabits}
                 selectedDate={selectedDate || new Date()}
                 toggleHabitCompletion={toggleHabitCompletion}
+                updateHabitProgress={updateHabitProgress}
                 deleteHabit={deleteHabit}
                 updateHabit={updateHabit}
               />

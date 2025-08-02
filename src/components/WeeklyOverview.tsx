@@ -15,13 +15,24 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
 } from "@/components/ui/chart"
 import type { Habit } from "@/lib/types"
 
 interface WeeklyOverviewProps {
   habits: Habit[]
+}
+
+const isHabitCompleted = (habit: Habit, dateKey: string) => {
+    const progress = habit.completed[dateKey];
+    if (progress === undefined) return false;
+
+    if (habit.trackingType === 'Checkbox') {
+      return progress === 1;
+    }
+    if (habit.trackingType === 'Quantitative' && habit.goalValue) {
+      return progress >= habit.goalValue;
+    }
+    return false;
 }
 
 export function WeeklyOverview({ habits }: WeeklyOverviewProps) {
@@ -33,7 +44,7 @@ export function WeeklyOverview({ habits }: WeeklyOverviewProps) {
       const dayName = format(date, "EEE")
       
       const completedCount = habits.filter(
-        (habit) => habit.completed[dateKey]
+        (habit) => isHabitCompleted(habit, dateKey)
       ).length
 
       return {

@@ -11,11 +11,12 @@ interface WeeklyHabitListProps {
   habits: Habit[];
   selectedDate: Date;
   toggleHabitCompletion: (habitId: string, date: Date) => void;
+  updateHabitProgress: (habitId: string, date: Date, progress: number) => void;
   deleteHabit: (habitId: string) => void;
   updateHabit: (habit: Omit<Habit, "completed">) => void;
 }
 
-export function WeeklyHabitList({ habits, selectedDate, toggleHabitCompletion, deleteHabit, updateHabit }: WeeklyHabitListProps) {
+export function WeeklyHabitList({ habits, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit }: WeeklyHabitListProps) {
   
   const weeklyHabitsForSelectedDate = habits.filter(habit => 
     isThisWeek(selectedDate, { weekStartsOn: 1 /* Monday */ })
@@ -47,6 +48,7 @@ export function WeeklyHabitList({ habits, selectedDate, toggleHabitCompletion, d
                         habit={habit}
                         selectedDate={selectedDate}
                         toggleHabitCompletion={toggleHabitCompletion}
+                        updateHabitProgress={updateHabitProgress}
                         deleteHabit={deleteHabit}
                         updateHabit={updateHabit}
                     />

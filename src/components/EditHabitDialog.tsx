@@ -27,15 +27,19 @@ import type { Habit } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { format } from 'date-fns';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Habit name must be at least 2 characters.' }).max(50),
-  frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
   priority: z.enum(['High', 'Medium', 'Low']),
+  frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
   days: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).optional(),
   timesPerWeek: z.coerce.number().min(1).max(7).optional(),
   interval: z.coerce.number().min(2).optional(),
+  trackingType: z.enum(['Checkbox', 'Quantitative']),
+  goalValue: z.coerce.number().min(1).optional(),
+  goalUnit: z.string().max(20).optional(),
 }).refine(data => {
     if (data.frequency === 'Custom' && (!data.days || data.days.length === 0)) {
         return false;
@@ -60,7 +64,16 @@ const formSchema = z.object({
 }, {
     message: "Please specify the interval in days.",
     path: ["interval"],
+}).refine(data => {
+    if (data.trackingType === 'Quantitative' && (!data.goalValue || !data.goalUnit)) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Goal and unit are required for quantitative tracking.",
+    path: ["goalValue"],
 });
+
 
 type EditHabitDialogProps = {
   habit: Habit;
@@ -82,10 +95,14 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
       days: habit.days || [],
       timesPerWeek: habit.timesPerWeek,
       interval: habit.interval,
+      trackingType: habit.trackingType || 'Checkbox',
+      goalValue: habit.goalValue,
+      goalUnit: habit.goalUnit,
     },
   });
 
   const frequency = form.watch('frequency');
+  const trackingType = form.watch('trackingType');
 
   React.useEffect(() => {
     if (isOpen) {
@@ -96,6 +113,9 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
         days: habit.days || [],
         timesPerWeek: habit.timesPerWeek,
         interval: habit.interval,
+        trackingType: habit.trackingType || 'Checkbox',
+        goalValue: habit.goalValue,
+        goalUnit: habit.goalUnit,
       });
     }
   }, [isOpen, habit, form]);
@@ -106,11 +126,14 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
       name: values.name,
       priority: values.priority,
       frequency: values.frequency,
+      trackingType: values.trackingType,
     };
     
     delete habitData.days;
     delete habitData.timesPerWeek;
     delete habitData.interval;
+    delete habitData.goalValue;
+    delete habitData.goalUnit;
     // We don't reset start date on edit
 
     if (values.frequency === 'Custom') {
@@ -125,6 +148,10 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
           habitData.startDate = format(new Date(), 'yyyy-MM-dd');
         }
     }
+    if (values.trackingType === 'Quantitative') {
+        habitData.goalValue = values.goalValue;
+        habitData.goalUnit = values.goalUnit;
+    }
 
 
     updateHabit(habitData);
@@ -137,7 +164,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-headline">Edit Habit</DialogTitle>
           <DialogDescription>
@@ -145,7 +172,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-y-auto max-h-[70vh] p-1">
             <div className="space-y-4">
               <FormField
                 control={form.control}
@@ -160,6 +187,72 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
                   </FormItem>
                 )}
               />
+               <FormField
+                  control={form.control}
+                  name="trackingType"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>How to track?</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex space-x-4"
+                        >
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Checkbox" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Checkbox
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Quantitative" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Number
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {trackingType === 'Quantitative' && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="goalValue"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Goal</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min="1" placeholder="e.g., 8" {...field} />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="goalUnit"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Unit</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., glasses" {...field} />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <div className="col-span-2 -mt-2">
+                             <FormMessage>{form.formState.errors.goalValue?.message}</FormMessage>
+                         </div>
+                    </div>
+                )}
               <FormField
                 control={form.control}
                 name="frequency"

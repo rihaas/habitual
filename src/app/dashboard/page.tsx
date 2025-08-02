@@ -13,10 +13,19 @@ import { AiSuggestionDialog } from "@/components/AiSuggestionDialog";
 import type { Habit } from "@/lib/types";
 import { initialHabits } from "@/lib/data";
 import { WeeklyOverview } from "@/components/WeeklyOverview";
+import { GamificationTracker } from "@/components/GamificationTracker";
+
+const POINTS_PER_HABIT = 10;
+const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
 
 export default function DashboardPage() {
   const [habits, setHabits] = React.useState<Habit[]>(initialHabits);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date());
+  const [level, setLevel] = React.useState(1);
+  const [points, setPoints] = React.useState(0);
+  const [pointsToNextLevel, setPointsToNextLevel] = React.useState(getPointsForNextLevel(1));
+  const [recentlyCompletedHabit, setRecentlyCompletedHabit] = React.useState<string | null>(null);
+
 
   const addHabit = (habit: Omit<Habit, "id" | "completed">) => {
     const newHabit: Habit = {
@@ -38,35 +47,7 @@ export default function DashboardPage() {
       )
     );
   };
-
-  const toggleHabitCompletion = (habitId: string, date: Date) => {
-    const dateKey = format(date, "yyyy-MM-dd");
-    setHabits((prevHabits) =>
-      prevHabits.map((habit) => {
-        if (habit.id === habitId) {
-          const newCompleted = { ...habit.completed };
-          newCompleted[dateKey] = newCompleted[dateKey] === 1 ? 0 : 1;
-          return { ...habit, completed: newCompleted };
-        }
-        return habit;
-      })
-    );
-  };
   
-  const updateHabitProgress = (habitId: string, date: Date, progress: number) => {
-    const dateKey = format(date, "yyyy-MM-dd");
-    setHabits((prevHabits) =>
-      prevHabits.map((habit) => {
-        if (habit.id === habitId) {
-          const newCompleted = { ...habit.completed };
-          newCompleted[dateKey] = progress;
-          return { ...habit, completed: newCompleted };
-        }
-        return habit;
-      })
-    );
-  };
-
   const isHabitCompleted = (habit: Habit, date: Date) => {
     const dateKey = format(date, 'yyyy-MM-dd');
     const progress = habit.completed[dateKey];
@@ -78,6 +59,74 @@ export default function DashboardPage() {
       return progress >= habit.goalValue;
     }
     return false;
+  };
+  
+  const handlePointsUpdate = (wasCompleted: boolean, isNowCompleted: boolean, habitId: string) => {
+    if (!wasCompleted && isNowCompleted) {
+        setPoints(p => {
+            const newPoints = p + POINTS_PER_HABIT;
+            if (newPoints >= pointsToNextLevel) {
+                const newLevel = level + 1;
+                setLevel(newLevel);
+                setPointsToNextLevel(getPointsForNextLevel(newLevel));
+            }
+            return newPoints;
+        });
+        setRecentlyCompletedHabit(habitId);
+        setTimeout(() => setRecentlyCompletedHabit(null), 1500);
+    } else if (wasCompleted && !isNowCompleted) {
+        setPoints(p => Math.max(0, p - POINTS_PER_HABIT));
+    }
+  }
+
+  const toggleHabitCompletion = (habitId: string, date: Date) => {
+    const dateKey = format(date, "yyyy-MM-dd");
+    setHabits((prevHabits) => {
+      const habit = prevHabits.find(h => h.id === habitId);
+      if (!habit) return prevHabits;
+      
+      const wasCompleted = isHabitCompleted(habit, date);
+      
+      const newHabits = prevHabits.map((h) => {
+        if (h.id === habitId) {
+          const newCompleted = { ...h.completed };
+          newCompleted[dateKey] = newCompleted[dateKey] === 1 ? 0 : 1;
+          return { ...h, completed: newCompleted };
+        }
+        return h;
+      });
+
+      const updatedHabit = newHabits.find(h => h.id === habitId)!;
+      const isNowCompleted = isHabitCompleted(updatedHabit, date);
+      handlePointsUpdate(wasCompleted, isNowCompleted, habitId);
+
+      return newHabits;
+    });
+  };
+  
+  const updateHabitProgress = (habitId: string, date: Date, progress: number) => {
+    const dateKey = format(date, "yyyy-MM-dd");
+    setHabits((prevHabits) => {
+      const habit = prevHabits.find(h => h.id === habitId);
+      if (!habit) return prevHabits;
+
+      const wasCompleted = isHabitCompleted(habit, date);
+
+      const newHabits = prevHabits.map((h) => {
+        if (h.id === habitId) {
+          const newCompleted = { ...h.completed };
+          newCompleted[dateKey] = progress;
+          return { ...h, completed: newCompleted };
+        }
+        return h;
+      });
+
+      const updatedHabit = newHabits.find(h => h.id === habitId)!;
+      const isNowCompleted = isHabitCompleted(updatedHabit, date);
+      handlePointsUpdate(wasCompleted, isNowCompleted, habitId);
+      
+      return newHabits;
+    });
   };
 
   const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
@@ -106,6 +155,7 @@ export default function DashboardPage() {
                 updateHabitProgress={updateHabitProgress}
                 deleteHabit={deleteHabit}
                 updateHabit={updateHabit}
+                recentlyCompletedHabit={recentlyCompletedHabit}
               />
               <WeeklyHabitList
                 habits={weeklyHabits}
@@ -114,6 +164,7 @@ export default function DashboardPage() {
                 updateHabitProgress={updateHabitProgress}
                 deleteHabit={deleteHabit}
                 updateHabit={updateHabit}
+                recentlyCompletedHabit={recentlyCompletedHabit}
               />
             </CardContent>
             <CardFooter>
@@ -133,6 +184,7 @@ export default function DashboardPage() {
               />
             </CardContent>
           </Card>
+          <GamificationTracker level={level} points={points} pointsToNextLevel={pointsToNextLevel} />
           <ProgressTracker habits={habits} selectedDate={selectedDate || new Date()} />
           <Card>
             <CardHeader>

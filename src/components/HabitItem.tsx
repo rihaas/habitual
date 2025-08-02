@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { Habit } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { MoreHorizontal, Minus, Plus } from 'lucide-react';
+import { MoreHorizontal, Minus, Plus, Star } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +36,7 @@ interface HabitItemProps {
   updateHabitProgress: (habitId: string, date: Date, progress: number) => void;
   deleteHabit: (habitId: string) => void;
   updateHabit: (habit: Omit<Habit, 'completed'>) => void;
+  showPoints?: boolean;
 }
 
 const priorityVariantMap: Record<Habit['priority'], 'destructive' | 'secondary' | 'default'> = {
@@ -44,7 +45,7 @@ const priorityVariantMap: Record<Habit['priority'], 'destructive' | 'secondary' 
   Low: 'default',
 };
 
-export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit }: HabitItemProps) {
+export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, showPoints }: HabitItemProps) {
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const progress = habit.completed[dateKey] ?? 0;
   
@@ -88,10 +89,16 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
     <>
       <div
         className={cn(
-          'flex items-center space-x-4 p-4 rounded-lg transition-all',
+          'flex items-center space-x-4 p-4 rounded-lg transition-all relative',
           isCompleted ? 'bg-primary/20' : 'bg-card hover:bg-accent'
         )}
       >
+        {showPoints && (
+            <div className="absolute top-2 right-12 flex items-center gap-1 text-yellow-500 animate-bounce">
+                <Star className="w-4 h-4 fill-current" />
+                <span className="font-bold text-sm">+10</span>
+            </div>
+        )}
         {habit.trackingType === 'Checkbox' ? (
             <Checkbox
                 id={`habit-${habit.id}-${dateKey}`}

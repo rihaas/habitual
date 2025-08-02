@@ -13,11 +13,12 @@ interface DailyHabitListProps {
   updateHabitProgress: (habitId: string, date: Date, progress: number) => void;
   deleteHabit: (habitId: string) => void;
   updateHabit: (habit: Omit<Habit, "completed">) => void;
+  recentlyCompletedHabit: string | null;
 }
 
 const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit }: DailyHabitListProps) {
+export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, recentlyCompletedHabit }: DailyHabitListProps) {
   
   const dayOfWeek = dayMap[selectedDate.getDay()];
 
@@ -34,7 +35,7 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
         const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
         
         let completedInWeek = 0;
-        for (let d = weekStart; d <= weekEnd; d.setDate(d.getDate() + 1)) {
+        for (let d = weekStart; d <= weekEnd; d = addDays(d, 1)) {
             const dateKey = format(d, 'yyyy-MM-dd');
             const progress = h.completed[dateKey];
             if (progress !== undefined) {
@@ -72,6 +73,7 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
                         updateHabitProgress={updateHabitProgress}
                         deleteHabit={deleteHabit}
                         updateHabit={updateHabit}
+                        showPoints={recentlyCompletedHabit === habit.id}
                     />
                 ))}
             </div>

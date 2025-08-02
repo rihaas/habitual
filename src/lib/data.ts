@@ -87,4 +87,15 @@ export const initialHabits: Habit[] = [
     completed: {},
     category: 'Finance',
   },
+  {
+    id: '10',
+    name: '7000 steps',
+    priority: 'Medium',
+    frequency: 'Daily',
+    trackingType: 'Quantitative',
+    goalValue: 7000,
+    goalUnit: 'steps',
+    completed: {},
+    category: 'Health',
+  },
 ];

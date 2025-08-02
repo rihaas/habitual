@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { Habit } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { MoreHorizontal, Minus, Plus, Star } from 'lucide-react';
+import { MoreHorizontal, Minus, Plus, Star, GripVertical } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,10 +89,11 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
     <>
       <div
         className={cn(
-          'flex items-center space-x-3 p-2 rounded-lg transition-all relative',
+          'flex items-center space-x-3 p-2 rounded-lg transition-all relative group',
           isCompleted ? 'bg-primary/20' : 'bg-card hover:bg-accent'
         )}
       >
+        <GripVertical className="h-5 w-5 text-muted-foreground/50 cursor-grab group-hover:opacity-100 md:opacity-0 transition-opacity" />
         {showPoints && (
             <div className="absolute top-1 right-10 flex items-center gap-1 text-yellow-500 animate-bounce">
                 <Star className="w-3 h-3 fill-current" />

@@ -1,9 +1,13 @@
 import { z } from 'zod';
 
+export const TimeOfDayEnum = z.enum(['Anytime', 'Morning', 'Afternoon', 'Evening']);
+export type TimeOfDay = z.infer<typeof TimeOfDayEnum>;
+
 export const HabitSchema = z.object({
   id: z.string(),
   name: z.string(),
   priority: z.enum(['High', 'Medium', 'Low']),
+  timeOfDay: TimeOfDayEnum.default('Anytime'),
   frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
   days: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).optional(),
   timesPerWeek: z.number().optional(),

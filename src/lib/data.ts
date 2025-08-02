@@ -10,6 +10,7 @@ export const initialHabits: Habit[] = [
     trackingType: 'Checkbox',
     completed: {},
     category: 'Spiritual',
+    timeOfDay: 'Morning'
   },
   {
     id: '2',
@@ -21,6 +22,7 @@ export const initialHabits: Habit[] = [
     goalUnit: 'times',
     completed: {},
     category: 'Spiritual',
+    timeOfDay: 'Anytime'
   },
   {
     id: '3',
@@ -30,6 +32,7 @@ export const initialHabits: Habit[] = [
     trackingType: 'Checkbox',
     completed: {},
     category: 'Spiritual',
+    timeOfDay: 'Morning'
   },
   {
     id: '4',
@@ -39,6 +42,7 @@ export const initialHabits: Habit[] = [
     trackingType: 'Checkbox',
     completed: {},
     category: 'Personal Growth',
+    timeOfDay: 'Evening'
   },
    {
     id: '5',
@@ -48,6 +52,7 @@ export const initialHabits: Habit[] = [
     trackingType: 'Checkbox',
     completed: {},
     category: 'Health',
+    timeOfDay: 'Evening'
   },
   {
     id: '6',
@@ -57,6 +62,7 @@ export const initialHabits: Habit[] = [
     trackingType: 'Checkbox',
     completed: {},
     category: 'Health',
+    timeOfDay: 'Morning'
   },
   {
     id: '7',
@@ -68,6 +74,7 @@ export const initialHabits: Habit[] = [
     goalUnit: 'L',
     completed: {},
     category: 'Health',
+    timeOfDay: 'Anytime'
   },
   {
     id: '8',
@@ -77,6 +84,7 @@ export const initialHabits: Habit[] = [
     trackingType: 'Checkbox',
     completed: {},
     category: 'Personal Growth',
+    timeOfDay: 'Evening'
   },
     {
     id: '9',
@@ -86,6 +94,7 @@ export const initialHabits: Habit[] = [
     trackingType: 'Checkbox',
     completed: {},
     category: 'Finance',
+    timeOfDay: 'Anytime'
   },
   {
     id: '10',
@@ -97,5 +106,6 @@ export const initialHabits: Habit[] = [
     goalUnit: 'steps',
     completed: {},
     category: 'Health',
+    timeOfDay: 'Afternoon'
   },
 ];

@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { Habit } from '@/lib/types';
+import { TimeOfDayEnum } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { format } from 'date-fns';
@@ -33,6 +34,7 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Habit name must be at least 2 characters.' }).max(50),
   priority: z.enum(['High', 'Medium', 'Low']),
+  timeOfDay: TimeOfDayEnum,
   frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
   days: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).optional(),
   timesPerWeek: z.coerce.number().min(1).max(7).optional(),
@@ -92,6 +94,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
       name: habit.name,
       frequency: habit.frequency,
       priority: habit.priority,
+      timeOfDay: habit.timeOfDay || 'Anytime',
       days: habit.days || [],
       timesPerWeek: habit.timesPerWeek,
       interval: habit.interval,
@@ -110,6 +113,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
         name: habit.name,
         frequency: habit.frequency,
         priority: habit.priority,
+        timeOfDay: habit.timeOfDay || 'Anytime',
         days: habit.days || [],
         timesPerWeek: habit.timesPerWeek,
         interval: habit.interval,
@@ -125,6 +129,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
       ...habit,
       name: values.name,
       priority: values.priority,
+      timeOfDay: values.timeOfDay,
       frequency: values.frequency,
       trackingType: values.trackingType,
     };
@@ -253,6 +258,30 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
                          </div>
                     </div>
                 )}
+                
+                 <FormField
+                    control={form.control}
+                    name="timeOfDay"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Time of Day</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select a time of day" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {TimeOfDayEnum.options.map(time => (
+                            <SelectItem key={time} value={time}>{time}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+
               <FormField
                 control={form.control}
                 name="frequency"

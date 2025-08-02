@@ -13,6 +13,8 @@ import type { Habit } from "@/lib/types";
 import { initialHabits } from "@/lib/data";
 import { WeeklyOverview } from "@/components/WeeklyOverview";
 import { GamificationTracker } from "@/components/GamificationTracker";
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 
 const POINTS_PER_HABIT = 10;
 const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
@@ -128,63 +130,76 @@ export default function DashboardPage() {
     });
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setHabits((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
   const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background font-body">
-      <AppHeader />
-      <main className="flex-1 p-4 sm:p-6 md:p-8 grid gap-8 lg:grid-cols-5">
-        <div className="lg:col-span-3 flex flex-col gap-8">
-          <Card className="flex-1 flex flex-col">
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl">
-                {format(selectedDate || new Date(), "eeee, MMMM do")}
-              </CardTitle>
-              <CardDescription>
-                What will you accomplish today?
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 space-y-6">
-              <DailyHabitList
-                habits={habits}
-                selectedDate={selectedDate || new Date()}
-                toggleHabitCompletion={toggleHabitCompletion}
-                updateHabitProgress={updateHabitProgress}
-                deleteHabit={deleteHabit}
-                updateHabit={updateHabit}
-                recentlyCompletedHabit={recentlyCompletedHabit}
-              />
-            </CardContent>
-            <CardFooter>
-              <AddHabitDialog addHabit={addHabit} />
-            </CardFooter>
-          </Card>
-           <WeeklyOverview habits={habits} />
+    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="flex min-h-screen w-full flex-col bg-background font-body">
+        <AppHeader />
+        <main className="flex-1 p-4 sm:p-6 md:p-8 grid gap-8 lg:grid-cols-5">
+            <div className="lg:col-span-3 flex flex-col gap-8">
+            <Card className="flex-1 flex flex-col">
+                <CardHeader>
+                <CardTitle className="font-headline text-2xl">
+                    {format(selectedDate || new Date(), "eeee, MMMM do")}
+                </CardTitle>
+                <CardDescription>
+                    What will you accomplish today?
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-6">
+                <DailyHabitList
+                    habits={habits}
+                    selectedDate={selectedDate || new Date()}
+                    toggleHabitCompletion={toggleHabitCompletion}
+                    updateHabitProgress={updateHabitProgress}
+                    deleteHabit={deleteHabit}
+                    updateHabit={updateHabit}
+                    recentlyCompletedHabit={recentlyCompletedHabit}
+                />
+                </CardContent>
+                <CardFooter>
+                <AddHabitDialog addHabit={addHabit} />
+                </CardFooter>
+            </Card>
+            <WeeklyOverview habits={habits} />
+            </div>
+            <div className="lg:col-span-2 flex flex-col gap-8">
+            <Card>
+                <CardContent className="p-2">
+                <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    className="rounded-md"
+                />
+                </CardContent>
+            </Card>
+            <GamificationTracker level={level} points={points} pointsToNextLevel={pointsToNextLevel} />
+            <ProgressTracker habits={habits} selectedDate={selectedDate || new Date()} />
+            <Card>
+                <CardHeader>
+                <CardTitle className="font-headline">Need Inspiration?</CardTitle>
+                <CardDescription>Get AI-powered habit suggestions.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                <AiSuggestionDialog addHabit={addHabit} completedHabits={completedHabitsToday} />
+                </CardContent>
+            </Card>
+            </div>
+        </main>
         </div>
-        <div className="lg:col-span-2 flex flex-col gap-8">
-          <Card>
-            <CardContent className="p-2">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md"
-              />
-            </CardContent>
-          </Card>
-          <GamificationTracker level={level} points={points} pointsToNextLevel={pointsToNextLevel} />
-          <ProgressTracker habits={habits} selectedDate={selectedDate || new Date()} />
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">Need Inspiration?</CardTitle>
-              <CardDescription>Get AI-powered habit suggestions.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AiSuggestionDialog addHabit={addHabit} completedHabits={completedHabitsToday} />
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-    </div>
+    </DndContext>
   );
 }

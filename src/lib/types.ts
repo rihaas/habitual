@@ -14,7 +14,6 @@ export const HabitSchema = z.object({
   goalUnit: z.string().optional(),
   completed: z.record(z.number()), // For Checkbox: 1 for true, 0 for false. For Quantitative: the actual value.
   category: z.string().optional(),
-  color: z.string().optional(),
 });
 
 export type Habit = z.infer<typeof HabitSchema>;

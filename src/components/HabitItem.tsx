@@ -89,14 +89,14 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
     <>
       <div
         className={cn(
-          'flex items-center space-x-4 p-4 rounded-lg transition-all relative',
+          'flex items-center space-x-3 p-2 rounded-lg transition-all relative',
           isCompleted ? 'bg-primary/20' : 'bg-card hover:bg-accent'
         )}
       >
         {showPoints && (
-            <div className="absolute top-2 right-12 flex items-center gap-1 text-yellow-500 animate-bounce">
-                <Star className="w-4 h-4 fill-current" />
-                <span className="font-bold text-sm">+10</span>
+            <div className="absolute top-1 right-10 flex items-center gap-1 text-yellow-500 animate-bounce">
+                <Star className="w-3 h-3 fill-current" />
+                <span className="font-bold text-xs">+10</span>
             </div>
         )}
         {habit.trackingType === 'Checkbox' ? (
@@ -104,23 +104,23 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
                 id={`habit-${habit.id}-${dateKey}`}
                 checked={isCompleted}
                 onCheckedChange={handleCheckboxChange}
-                className="h-6 w-6"
+                className="h-5 w-5"
                 aria-label={`Mark '${habit.name}' as ${isCompleted ? 'incomplete' : 'complete'}`}
             />
         ) : (
-           <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={decrementProgress}>
-                    <Minus className="h-4 w-4" />
+           <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={decrementProgress}>
+                    <Minus className="h-3 w-3" />
                 </Button>
                 <Input
                     type="number"
                     value={progress}
                     onChange={handleProgressChange}
-                    className="w-16 h-9 text-center"
+                    className="w-14 h-8 text-center"
                     aria-label={`Progress for ${habit.name}`}
                 />
-                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={incrementProgress}>
-                    <Plus className="h-4 w-4" />
+                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={incrementProgress}>
+                    <Plus className="h-3 w-3" />
                 </Button>
            </div>
         )}
@@ -128,14 +128,14 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
           <label
             htmlFor={`habit-${habit.id}-${dateKey}`}
             className={cn(
-              'text-base font-medium leading-none cursor-pointer',
+              'text-sm font-medium leading-none cursor-pointer',
               isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'
             )}
           >
             {habit.name}
           </label>
            {habit.trackingType === 'Quantitative' && habit.goalValue && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                     Goal: {habit.goalValue} {habit.goalUnit}
                 </p>
             )}

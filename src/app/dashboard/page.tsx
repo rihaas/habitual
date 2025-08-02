@@ -13,7 +13,7 @@ import type { Habit } from "@/lib/types";
 import { initialHabits } from "@/lib/data";
 import { WeeklyOverview } from "@/components/WeeklyOverview";
 import { GamificationTracker } from "@/components/GamificationTracker";
-import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { HabitPacksDialog } from "@/components/HabitPacksDialog";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,15 @@ export default function DashboardPage() {
   const [points, setPoints] = React.useState(0);
   const [pointsToNextLevel, setPointsToNextLevel] = React.useState(getPointsForNextLevel(1));
   const [recentlyCompletedHabit, setRecentlyCompletedHabit] = React.useState<string | null>(null);
+
+  // Define sensors for DndContext
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
 
   const addHabit = (habit: Omit<Habit, "id" | "completed">) => {
@@ -156,7 +165,7 @@ export default function DashboardPage() {
   const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
 
   return (
-    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} id="habit-dnd">
         <div className="flex min-h-screen w-full flex-col bg-background font-body">
         <AppHeader />
         <main className="flex-1 p-4 sm:p-6 md:p-8 grid gap-8 lg:grid-cols-5">

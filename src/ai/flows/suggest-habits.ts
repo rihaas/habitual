@@ -18,8 +18,13 @@ const SuggestHabitsInputSchema = z.object({
 });
 export type SuggestHabitsInput = z.infer<typeof SuggestHabitsInputSchema>;
 
+const HabitSuggestionCategorySchema = z.object({
+    category: z.enum(["Health", "Mindfulness", "Productivity", "Creativity"]),
+    habits: z.array(z.string()).describe("A list of suggested habits for this category.")
+});
+
 const SuggestHabitsOutputSchema = z.object({
-  suggestions: z.array(z.string()).describe('A list of suggested habits tailored to the user\'s interests and goals.'),
+  suggestions: z.array(HabitSuggestionCategorySchema).describe('A list of suggested habits tailored to the user\'s interests and goals, grouped by category.'),
 });
 export type SuggestHabitsOutput = z.infer<typeof SuggestHabitsOutputSchema>;
 
@@ -38,6 +43,8 @@ Goals: {{{goals}}}
 Completed Habits: {{{completedHabits}}}
 
 Based on the above information, provide a list of habit suggestions. Be specific and actionable. Each habit should be less than 10 words.
+
+Provide suggestions for the following categories: Health, Mindfulness, Productivity, and Creativity. Ensure there are at least 2-3 suggestions per category.
 
 Suggestions:`, 
 });

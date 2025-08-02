@@ -13,15 +13,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Lightbulb, Plus, Sparkles } from 'lucide-react';
+import { Lightbulb, Plus, Sparkles, Brain, HeartPulse, Rocket, Paintbrush } from 'lucide-react';
 import type { Habit } from '@/lib/types';
-import { getAiSuggestions } from '@/app/actions';
+import { getAiSuggestions, type SuggestHabitsOutput } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
+import { Badge } from './ui/badge';
 
 const formSchema = z.object({
   interests: z.string().min(3, { message: 'Please share at least one interest.' }),
@@ -29,14 +29,22 @@ const formSchema = z.object({
 });
 
 type AiSuggestionDialogProps = {
-  addHabit: (habit: Omit<Habit, 'id' | 'completed' | 'priority' | 'frequency'> & Partial<Pick<Habit, 'priority' | 'frequency'>>) => void;
+  addHabit: (habit: Omit<Habit, 'id' | 'completed' | 'priority' | 'frequency' | 'trackingType'> & Partial<Pick<Habit, 'priority' | 'frequency' | 'trackingType'>>) => void;
   completedHabits: string;
+  children: React.ReactNode;
 };
 
-export function AiSuggestionDialog({ addHabit, completedHabits }: AiSuggestionDialogProps) {
+const categoryIcons: Record<string, React.ReactNode> = {
+    Health: <HeartPulse className="h-5 w-5 text-red-500" />,
+    Mindfulness: <Brain className="h-5 w-5 text-purple-500" />,
+    Productivity: <Rocket className="h-5 w-5 text-blue-500" />,
+    Creativity: <Paintbrush className="h-5 w-5 text-orange-500" />,
+}
+
+export function AiSuggestionDialog({ addHabit, completedHabits, children }: AiSuggestionDialogProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [suggestions, setSuggestions] = React.useState<string[]>([]);
+  const [suggestions, setSuggestions] = React.useState<SuggestHabitsOutput['suggestions']>([]);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -69,17 +77,24 @@ export function AiSuggestionDialog({ addHabit, completedHabits }: AiSuggestionDi
     }
   }
 
-  function handleAddSuggestion(suggestion: string) {
+  function handleAddSuggestion(suggestion: string, category?: string) {
     addHabit({
       name: suggestion,
       priority: 'Medium',
       frequency: 'Daily',
+      trackingType: 'Checkbox',
+      category: category,
     });
     toast({
       title: 'Habit Added!',
       description: `"${suggestion}" has been added to your list.`,
     });
-    setSuggestions(prev => prev.filter(s => s !== suggestion));
+    setSuggestions(prev => 
+        prev.map(cat => ({
+            ...cat,
+            habits: cat.habits.filter(h => h !== suggestion)
+        })).filter(cat => cat.habits.length > 0)
+    );
   }
 
   const handleOpenChange = (open: boolean) => {
@@ -94,12 +109,9 @@ export function AiSuggestionDialog({ addHabit, completedHabits }: AiSuggestionDi
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">
-          <Sparkles className="mr-2 h-4 w-4 text-yellow-500" />
-          Get AI Suggestions
-        </Button>
+        {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-headline flex items-center gap-2"><Lightbulb /> Let's Find Your Next Habit</DialogTitle>
           <DialogDescription>
@@ -108,19 +120,30 @@ export function AiSuggestionDialog({ addHabit, completedHabits }: AiSuggestionDi
         </DialogHeader>
         
         {suggestions.length > 0 ? (
-          <div className="space-y-3 py-4 max-h-64 overflow-y-auto">
-            <h4 className="font-semibold">Here are some ideas:</h4>
-            {suggestions.map((s, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 p-3 bg-accent/50 rounded-lg">
-                    <p className="flex-1">{s}</p>
-                    <Button size="sm" onClick={() => handleAddSuggestion(s)}>
-                        <Plus className="h-4 w-4 mr-1" /> Add
-                    </Button>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <h4 className="font-semibold px-1">Here are some ideas:</h4>
+            {suggestions.map((category, i) => (
+                <div key={i} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                       {categoryIcons[category.category] || <Sparkles className="h-5 w-5" />}
+                       <h5 className="font-bold text-lg">{category.category}</h5>
+                    </div>
+                    <div className="space-y-2 pl-2">
+                        {category.habits.map((s, j) => (
+                             <div key={j} className="flex items-center justify-between gap-2 p-3 bg-accent/50 rounded-lg">
+                                <p className="flex-1">{s}</p>
+                                <Button size="sm" onClick={() => handleAddSuggestion(s, category.category)}>
+                                    <Plus className="h-4 w-4 mr-1" /> Add
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ))}
           </div>
         ) : isLoading ? (
             <div className="space-y-3 py-4">
+                <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />

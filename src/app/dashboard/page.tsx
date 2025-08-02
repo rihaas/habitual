@@ -15,6 +15,9 @@ import { WeeklyOverview } from "@/components/WeeklyOverview";
 import { GamificationTracker } from "@/components/GamificationTracker";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { HabitPacksDialog } from "@/components/HabitPacksDialog";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Package } from "lucide-react";
 
 const POINTS_PER_HABIT = 10;
 const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
@@ -36,6 +39,15 @@ export default function DashboardPage() {
     };
     setHabits((prev) => [...prev, newHabit]);
   };
+
+  const addHabitPack = (packHabits: Omit<Habit, "id" | "completed">[]) => {
+    const newHabits = packHabits.map(habit => ({
+        ...habit,
+        id: crypto.randomUUID(),
+        completed: {}
+    }));
+    setHabits(prev => [...prev, ...newHabits]);
+  }
 
   const deleteHabit = (habitId: string) => {
     setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
@@ -191,10 +203,21 @@ export default function DashboardPage() {
             <Card>
                 <CardHeader>
                 <CardTitle className="font-headline">Need Inspiration?</CardTitle>
-                <CardDescription>Get AI-powered habit suggestions.</CardDescription>
+                <CardDescription>Get AI-powered suggestions or try a habit pack.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                <AiSuggestionDialog addHabit={addHabit} completedHabits={completedHabitsToday} />
+                <CardContent className="flex flex-col sm:flex-row gap-2">
+                  <AiSuggestionDialog addHabit={addHabit} completedHabits={completedHabitsToday}>
+                     <Button variant="outline" className="w-full">
+                        <Sparkles className="mr-2 h-4 w-4 text-yellow-500" />
+                        AI Suggestions
+                      </Button>
+                  </AiSuggestionDialog>
+                  <HabitPacksDialog addHabitPack={addHabitPack}>
+                     <Button variant="outline" className="w-full">
+                        <Package className="mr-2 h-4 w-4 text-blue-500" />
+                        Habit Packs
+                      </Button>
+                  </HabitPacksDialog>
                 </CardContent>
             </Card>
             </div>

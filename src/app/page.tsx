@@ -9,8 +9,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Target } from 'lucide-react';
 
-const HARDCODED_USER = 'admin';
-const HARDCODED_PASS = 'password';
+const HARDCODED_USER = '316472678534';
+const HARDCODED_PASS = 'Rihu1122@';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -68,7 +68,7 @@ export default function LoginPage() {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="admin"
+                  placeholder="Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -79,7 +79,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="password"
+                  placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

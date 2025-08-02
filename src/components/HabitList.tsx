@@ -10,9 +10,11 @@ interface HabitListProps {
   habits: Habit[];
   selectedDate: Date;
   toggleHabitCompletion: (habitId: string, date: Date) => void;
+  deleteHabit: (habitId: string) => void;
+  updateHabit: (habit: Omit<Habit, "completed">) => void;
 }
 
-export default function HabitList({ habits, selectedDate, toggleHabitCompletion }: HabitListProps) {
+export default function HabitList({ habits, selectedDate, toggleHabitCompletion, deleteHabit, updateHabit }: HabitListProps) {
   const isDateToday = isToday(selectedDate);
 
   const filteredHabits = habits.filter(habit => {
@@ -47,6 +49,8 @@ export default function HabitList({ habits, selectedDate, toggleHabitCompletion 
           habit={habit}
           selectedDate={selectedDate}
           toggleHabitCompletion={toggleHabitCompletion}
+          deleteHabit={deleteHabit}
+          updateHabit={updateHabit}
         />
       ))}
     </div>

@@ -25,6 +25,18 @@ export default function DashboardPage() {
     setHabits((prev) => [...prev, newHabit]);
   };
 
+  const deleteHabit = (habitId: string) => {
+    setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
+  };
+
+  const updateHabit = (updatedHabit: Omit<Habit, "completed">) => {
+    setHabits((prevHabits) =>
+      prevHabits.map((habit) =>
+        habit.id === updatedHabit.id ? { ...habit, ...updatedHabit } : habit
+      )
+    );
+  };
+
   const toggleHabitCompletion = (habitId: string, date: Date) => {
     const dateKey = format(date, "yyyy-MM-dd");
     setHabits((prevHabits) =>
@@ -60,6 +72,8 @@ export default function DashboardPage() {
                 habits={habits}
                 selectedDate={selectedDate || new Date()}
                 toggleHabitCompletion={toggleHabitCompletion}
+                deleteHabit={deleteHabit}
+                updateHabit={updateHabit}
               />
             </CardContent>
             <CardFooter>

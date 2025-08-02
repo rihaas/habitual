@@ -69,4 +69,22 @@ export const initialHabits: Habit[] = [
     completed: {},
     category: 'Health',
   },
+  {
+    id: '8',
+    name: 'Journaling',
+    priority: 'Low',
+    frequency: 'Daily',
+    trackingType: 'Checkbox',
+    completed: {},
+    category: 'Personal Growth',
+  },
+    {
+    id: '9',
+    name: 'Track Finances',
+    priority: 'Medium',
+    frequency: 'Daily',
+    trackingType: 'Checkbox',
+    completed: {},
+    category: 'Finance',
+  },
 ];

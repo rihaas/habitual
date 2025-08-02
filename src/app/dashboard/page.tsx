@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Calendar } from "@/components/ui/calendar";
 import { AppHeader } from "@/components/Header";
 import { DailyHabitList } from "@/components/DailyHabitList";
-import { WeeklyHabitList } from "@/components/WeeklyHabitList";
 import { AddHabitDialog } from "@/components/AddHabitDialog";
 import { ProgressTracker } from "@/components/ProgressTracker";
 import { AiSuggestionDialog } from "@/components/AiSuggestionDialog";
@@ -131,8 +130,6 @@ export default function DashboardPage() {
 
   const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
 
-  const weeklyHabits = habits.filter(h => h.frequency === 'Weekly');
-
   return (
     <div className="flex min-h-screen w-full flex-col bg-background font-body">
       <AppHeader />
@@ -150,15 +147,6 @@ export default function DashboardPage() {
             <CardContent className="flex-1 space-y-6">
               <DailyHabitList
                 habits={habits}
-                selectedDate={selectedDate || new Date()}
-                toggleHabitCompletion={toggleHabitCompletion}
-                updateHabitProgress={updateHabitProgress}
-                deleteHabit={deleteHabit}
-                updateHabit={updateHabit}
-                recentlyCompletedHabit={recentlyCompletedHabit}
-              />
-              <WeeklyHabitList
-                habits={weeklyHabits}
                 selectedDate={selectedDate || new Date()}
                 toggleHabitCompletion={toggleHabitCompletion}
                 updateHabitProgress={updateHabitProgress}

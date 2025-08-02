@@ -5,7 +5,8 @@ import { addDays, format, startOfWeek } from "date-fns";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { AppHeader } from "@/components/Header";
-import HabitList from "@/components/HabitList";
+import { DailyHabitList } from "@/components/DailyHabitList";
+import { WeeklyHabitList } from "@/components/WeeklyHabitList";
 import { AddHabitDialog } from "@/components/AddHabitDialog";
 import { ProgressTracker } from "@/components/ProgressTracker";
 import { AiSuggestionDialog } from "@/components/AiSuggestionDialog";
@@ -54,6 +55,9 @@ export default function DashboardPage() {
   
   const completedHabitsToday = habits.filter(h => h.completed[format(selectedDate || new Date(), "yyyy-MM-dd")]).map(h => h.name).join(', ');
 
+  const dailyHabits = habits.filter(h => h.frequency === 'Daily');
+  const weeklyHabits = habits.filter(h => h.frequency === 'Weekly');
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background font-body">
       <AppHeader />
@@ -68,9 +72,16 @@ export default function DashboardPage() {
                 What will you accomplish today?
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex-1">
-              <HabitList
-                habits={habits}
+            <CardContent className="flex-1 space-y-6">
+              <DailyHabitList
+                habits={dailyHabits}
+                selectedDate={selectedDate || new Date()}
+                toggleHabitCompletion={toggleHabitCompletion}
+                deleteHabit={deleteHabit}
+                updateHabit={updateHabit}
+              />
+              <WeeklyHabitList
+                habits={weeklyHabits}
                 selectedDate={selectedDate || new Date()}
                 toggleHabitCompletion={toggleHabitCompletion}
                 deleteHabit={deleteHabit}

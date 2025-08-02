@@ -11,6 +11,7 @@ import { ProgressTracker } from "@/components/ProgressTracker";
 import { AiSuggestionDialog } from "@/components/AiSuggestionDialog";
 import type { Habit } from "@/lib/types";
 import { initialHabits } from "@/lib/data";
+import { WeeklyOverview } from "@/components/WeeklyOverview";
 
 export default function DashboardPage() {
   const [habits, setHabits] = React.useState<Habit[]>(initialHabits);
@@ -80,6 +81,7 @@ export default function DashboardPage() {
               <AddHabitDialog addHabit={addHabit} />
             </CardFooter>
           </Card>
+           <WeeklyOverview habits={habits} />
         </div>
         <div className="lg:col-span-2 flex flex-col gap-8">
           <Card>

@@ -21,3 +21,19 @@ export const HabitSchema = z.object({
 });
 
 export type Habit = z.infer<typeof HabitSchema>;
+
+export const SuggestHabitPackInputSchema = z.object({
+  theme: z.string().describe('The theme for the habit pack, e.g., "Morning Routine", "Digital Detox", "Fitness Jumpstart".'),
+});
+export type SuggestHabitPackInput = z.infer<typeof SuggestHabitPackInputSchema>;
+
+const HabitPackSchema = z.object({
+    name: z.string().describe("A creative and engaging name for the habit pack."),
+    description: z.string().describe("A short, motivating description of the habit pack and its benefits."),
+    habits: z.array(HabitSchema.omit({ id: true, completed: true, category: true })).describe("A list of 3-5 related habits for the pack.")
+})
+
+export const SuggestHabitPackOutputSchema = z.object({
+  pack: HabitPackSchema.nullable(),
+});
+export type SuggestHabitPackOutput = z.infer<typeof SuggestHabitPackOutputSchema>;

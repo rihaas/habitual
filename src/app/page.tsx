@@ -10,9 +10,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signInWithGoogle, signInWithEmail } from '@/app/auth/actions';
+import { sendSignInLink } from '@/app/auth/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+
 
 const GoogleIcon = () => (
   <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -25,7 +28,6 @@ const GoogleIcon = () => (
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
 export default function LoginPage() {
@@ -33,13 +35,14 @@ export default function LoginPage() {
   const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: '' },
   });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
     try {
-      await signInWithGoogle();
+      await signInWithPopup(auth, provider);
       router.push('/dashboard');
     } catch (error) {
       toast({
@@ -53,8 +56,14 @@ export default function LoginPage() {
   const handleEmailSignIn = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
-      await signInWithEmail(values.email, values.password);
-      router.push('/dashboard');
+      await sendSignInLink(values.email);
+      toast({
+        title: 'Check your email',
+        description: `We've sent a sign-in link to ${values.email}.`,
+      });
+      // Store email in local storage to retrieve after redirect
+      window.localStorage.setItem('emailForSignIn', values.email);
+      form.reset();
     } catch (error: any) {
         toast({
             title: 'Authentication Error',
@@ -114,21 +123,9 @@ export default function LoginPage() {
                     </FormItem>
                   )}
                 />
-                 <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-                   {isSubmitting ? "Signing in..." : "Continue with Email"}
+                   <Mail className="mr-2 h-4 w-4" />
+                   {isSubmitting ? "Sending link..." : "Continue with Email"}
                 </Button>
               </form>
             </Form>

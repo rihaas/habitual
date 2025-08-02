@@ -2,23 +2,26 @@
 
 import { auth } from '@/lib/firebase';
 import { 
-    signInWithPopup, 
-    GoogleAuthProvider, 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword,
+    sendSignInLinkToEmail,
     signOut as firebaseSignOut
 } from 'firebase/auth';
 
-export async function signInWithGoogle() {
-  const provider = new GoogleAuthProvider();
-  try {
-    const result = await signInWithPopup(auth, provider);
-    return JSON.parse(JSON.stringify(result.user));
-  } catch (error) {
-    console.error('Google sign-in error:', error);
-    throw error;
-  }
+const actionCodeSettings = {
+    url: process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/auth/finish-signin` : 'http://localhost:9002/auth/finish-signin',
+    handleCodeInApp: true,
+};
+
+export async function sendSignInLink(email: string) {
+    try {
+        await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    } catch (error: any) {
+        console.error('Error sending sign-in link:', error);
+        throw new Error(getFriendlyErrorMessage(error.code));
+    }
 }
+
 
 export async function signInWithEmail(email: string, password: string): Promise<any> {
     try {

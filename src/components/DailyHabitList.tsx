@@ -30,17 +30,22 @@ const timeOfDayIcons: Record<TimeOfDay, React.ReactNode> = {
     Anytime: <Clock className="w-5 h-5" />,
 };
 
-const SortableHabitItem = (props: React.ComponentProps<typeof HabitItem>) => {
+const SortableHabitItem = (props: Omit<React.ComponentProps<typeof HabitItem>, 'dragHandleProps'>) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: props.habit.id });
 
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
     };
+    
+    const dragHandleProps = {
+        ...attributes,
+        ...listeners,
+    };
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-            <HabitItem {...props} />
+        <div ref={setNodeRef} style={style}>
+            <HabitItem {...props} dragHandleProps={dragHandleProps} />
         </div>
     );
 }

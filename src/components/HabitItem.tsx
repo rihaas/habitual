@@ -6,13 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { Habit } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { MoreHorizontal, Minus, Plus, Star, GripVertical, Pencil, Trash2 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Minus, Plus, Star, GripVertical, Pencil, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { EditHabitDialog } from './EditHabitDialog';
 import {
@@ -24,7 +18,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
@@ -37,6 +30,7 @@ interface HabitItemProps {
   deleteHabit: (habitId: string) => void;
   updateHabit: (habit: Omit<Habit, 'completed'>) => void;
   showPoints?: boolean;
+  dragHandleProps: any;
 }
 
 const priorityVariantMap: Record<Habit['priority'], 'destructive' | 'secondary' | 'default'> = {
@@ -45,7 +39,7 @@ const priorityVariantMap: Record<Habit['priority'], 'destructive' | 'secondary' 
   Low: 'default',
 };
 
-export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, showPoints }: HabitItemProps) {
+export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, showPoints, dragHandleProps }: HabitItemProps) {
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const progress = habit.completed[dateKey] ?? 0;
   
@@ -93,7 +87,10 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
           isCompleted ? 'bg-primary/20' : 'bg-card hover:bg-accent'
         )}
       >
-        <GripVertical className="h-5 w-5 text-muted-foreground/50 cursor-grab group-hover:opacity-100 md:opacity-0 transition-opacity" />
+        <div {...dragHandleProps}>
+          <GripVertical className="h-5 w-5 text-muted-foreground/50 cursor-grab group-hover:opacity-100 md:opacity-0 transition-opacity" />
+        </div>
+
         {showPoints && (
             <div className="absolute top-1 right-10 flex items-center gap-1 text-yellow-500 animate-bounce">
                 <Star className="w-3 h-3 fill-current" />

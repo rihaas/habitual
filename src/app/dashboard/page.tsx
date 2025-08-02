@@ -11,24 +11,37 @@ import { ProgressTracker } from "@/components/ProgressTracker";
 import { AiSuggestionDialog } from "@/components/AiSuggestionDialog";
 import type { Habit } from "@/lib/types";
 import { initialHabits } from "@/lib/data";
-import { WeeklyOverview } from "@/components/WeeklyOverview";
 import { GamificationTracker } from "@/components/GamificationTracker";
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { HabitPacksDialog } from "@/components/HabitPacksDialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Package } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const POINTS_PER_HABIT = 10;
 const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [user, loading, error] = useAuthState(auth);
+  
   const [habits, setHabits] = React.useState<Habit[]>(initialHabits);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date());
   const [level, setLevel] = React.useState(1);
   const [points, setPoints] = React.useState(0);
   const [pointsToNextLevel, setPointsToNextLevel] = React.useState(getPointsForNextLevel(1));
   const [recentlyCompletedHabit, setRecentlyCompletedHabit] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.push('/');
+    }
+  }, [user, loading, router]);
+
 
   // Define sensors for DndContext
   const sensors = useSensors(
@@ -164,8 +177,29 @@ export default function DashboardPage() {
 
   const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
 
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-background font-body">
+        <AppHeader />
+        <main className="flex-1 p-4 sm:p-6 md:p-8">
+            <div className="grid gap-8 lg:grid-cols-5">
+              <div className="lg:col-span-3 space-y-8">
+                  <Skeleton className="h-64 w-full" />
+                  <Skeleton className="h-48 w-full" />
+              </div>
+              <div className="lg:col-span-2 space-y-8">
+                  <Skeleton className="h-80 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+              </div>
+            </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} id="habit-dnd">
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} id="habit-dnd-root">
         <div className="flex min-h-screen w-full flex-col bg-background font-body">
         <AppHeader />
         <main className="flex-1 p-4 sm:p-6 md:p-8 grid gap-8 lg:grid-cols-5">
@@ -194,7 +228,7 @@ export default function DashboardPage() {
                 <AddHabitDialog addHabit={addHabit} />
                 </CardFooter>
             </Card>
-            <WeeklyOverview habits={habits} />
+            
             </div>
             <div className="lg:col-span-2 flex flex-col gap-8">
             <Card>

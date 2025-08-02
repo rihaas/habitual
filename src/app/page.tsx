@@ -1,9 +1,19 @@
+'use client';
+
+import * as React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Target, CheckCircle } from 'lucide-react';
+import { Target, CheckCircle, Mail } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { signInWithGoogle, signInWithEmail } from '@/app/auth/actions';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
-// Using a custom SVG for Google icon as it's not in lucide-react
 const GoogleIcon = () => (
   <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
     <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
@@ -13,14 +23,50 @@ const GoogleIcon = () => (
   </svg>
 );
 
-// Using a custom SVG for Facebook icon.
-const FacebookIcon = () => (
-    <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M22,12c0-5.52-4.48-10-10-10S2,6.48,2,12c0,4.99,3.66,9.13,8.44,9.88V15.5H8.31v-3.5h2.13V9.69c0-2.11,1.26-3.26,3.16-3.26 c0.9,0,1.84,0.16,1.84,0.16v2.97h-1.5c-1.05,0-1.39,0.62-1.39,1.34v1.56h3.33l-0.52,3.5H14.5v6.38C19.34,21.13,22,16.99,22,12z" />
-    </svg>
-)
+const formSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+});
 
 export default function LoginPage() {
+  const { toast } = useToast();
+  const router = useRouter();
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { email: '', password: '' },
+  });
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+      router.push('/dashboard');
+    } catch (error) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Failed to sign in with Google. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEmailSignIn = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true);
+    try {
+      await signInWithEmail(values.email, values.password);
+      router.push('/dashboard');
+    } catch (error: any) {
+        toast({
+            title: 'Authentication Error',
+            description: error.message || 'An unexpected error occurred.',
+            variant: 'destructive',
+          });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 font-body">
       <div className="absolute top-0 left-0 w-full h-full bg-primary/10 blur-3xl -z-10"></div>
@@ -32,25 +78,60 @@ export default function LoginPage() {
               Habitual
             </h1>
           </div>
-          <CardTitle className="text-2xl font-semibold">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl font-semibold">Welcome</CardTitle>
           <CardDescription>
-            Sign in to continue your journey of self-improvement.
+            Sign in or create an account to start your journey.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <Button asChild className="w-full" size="lg">
-              <Link href="/dashboard">
-                <GoogleIcon />
-                Continue with Google
-              </Link>
+            <Button onClick={handleGoogleSignIn} className="w-full" size="lg">
+              <GoogleIcon />
+              Continue with Google
             </Button>
-            <Button asChild variant="secondary" className="w-full bg-blue-600 text-white hover:bg-blue-700" size="lg">
-              <Link href="/dashboard">
-                <FacebookIcon />
-                Continue with Facebook
-              </Link>
-            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleEmailSignIn)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email Address</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="you@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                   {isSubmitting ? "Signing in..." : "Continue with Email"}
+                </Button>
+              </form>
+            </Form>
           </div>
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>By continuing, you agree to our Terms of Service.</p>

@@ -26,12 +26,16 @@ import {
 import type { Habit } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { format } from 'date-fns';
+
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Habit name must be at least 2 characters.' }).max(50),
-  frequency: z.enum(['Daily', 'Weekly', 'Custom']),
+  frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
   priority: z.enum(['High', 'Medium', 'Low']),
   days: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])).optional(),
+  timesPerWeek: z.coerce.number().min(1).max(7).optional(),
+  interval: z.coerce.number().min(2).optional(),
 }).refine(data => {
     if (data.frequency === 'Custom' && (!data.days || data.days.length === 0)) {
         return false;
@@ -40,6 +44,22 @@ const formSchema = z.object({
 }, {
     message: "Please select at least one day for custom frequency.",
     path: ["days"],
+}).refine(data => {
+    if (data.frequency === 'N-times-week' && !data.timesPerWeek) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Please specify how many times a week.",
+    path: ["timesPerWeek"],
+}).refine(data => {
+    if (data.frequency === 'Every-n-days' && !data.interval) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Please specify the interval in days.",
+    path: ["interval"],
 });
 
 type EditHabitDialogProps = {
@@ -60,6 +80,8 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
       frequency: habit.frequency,
       priority: habit.priority,
       days: habit.days || [],
+      timesPerWeek: habit.timesPerWeek,
+      interval: habit.interval,
     },
   });
 
@@ -72,6 +94,8 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
         frequency: habit.frequency,
         priority: habit.priority,
         days: habit.days || [],
+        timesPerWeek: habit.timesPerWeek,
+        interval: habit.interval,
       });
     }
   }, [isOpen, habit, form]);
@@ -83,11 +107,25 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
       priority: values.priority,
       frequency: values.frequency,
     };
+    
+    delete habitData.days;
+    delete habitData.timesPerWeek;
+    delete habitData.interval;
+    // We don't reset start date on edit
+
     if (values.frequency === 'Custom') {
       habitData.days = values.days;
-    } else {
-      delete habitData.days;
     }
+    if (values.frequency === 'N-times-week') {
+        habitData.timesPerWeek = values.timesPerWeek;
+    }
+    if (values.frequency === 'Every-n-days') {
+        habitData.interval = values.interval;
+        if (!habit.startDate) {
+          habitData.startDate = format(new Date(), 'yyyy-MM-dd');
+        }
+    }
+
 
     updateHabit(habitData);
     toast({
@@ -138,6 +176,8 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
                         <SelectItem value="Daily">Daily</SelectItem>
                         <SelectItem value="Weekly">Weekly</SelectItem>
                         <SelectItem value="Custom">Specific Days</SelectItem>
+                        <SelectItem value="N-times-week">N Times a Week</SelectItem>
+                        <SelectItem value="Every-n-days">Every N Days</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -163,6 +203,39 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
                                 <ToggleGroupItem key={day} value={day}>{day}</ToggleGroupItem>
                             ))}
                          </ToggleGroup>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              )}
+              {frequency === 'N-times-week' && (
+                 <FormField
+                    control={form.control}
+                    name="timesPerWeek"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Times per week</FormLabel>
+                        <FormControl>
+                           <Input type="number" min="1" max="7" placeholder="e.g., 3" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              )}
+               {frequency === 'Every-n-days' && (
+                 <FormField
+                    control={form.control}
+                    name="interval"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Repeat every</FormLabel>
+                        <FormControl>
+                            <div className="flex items-center gap-2">
+                                <Input type="number" min="2" placeholder="e.g., 3" {...field} />
+                                <span>days</span>
+                           </div>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

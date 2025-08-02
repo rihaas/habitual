@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { format } from 'date-fns';
+import { format, differenceInDays, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import type { Habit } from '@/lib/types';
@@ -19,13 +19,43 @@ export function ProgressTracker({ habits, selectedDate }: ProgressTrackerProps) 
   const dayOfWeek = dayMap[selectedDate.getDay()];
   
   const applicableHabits = habits.filter(h => {
-    if (h.frequency === 'Daily') return true;
-    if (h.frequency === 'Weekly') return true; 
-    if (h.frequency === 'Custom' && h.days?.includes(dayOfWeek)) return true;
-    return false;
+    switch (h.frequency) {
+      case 'Daily':
+        return true;
+      case 'Weekly':
+        return true;
+      case 'Custom':
+        return h.days?.includes(dayOfWeek) ?? false;
+      case 'Every-n-days':
+        if (!h.interval || !h.startDate) return false;
+        const start = parseISO(h.startDate);
+        const diff = differenceInDays(selectedDate, start);
+        return diff >= 0 && diff % h.interval === 0;
+      case 'N-times-week':
+        // N-times-week habits are always applicable to be shown in progress
+        // until they are completed for the week.
+         return true;
+      default:
+        return false;
+    }
   });
 
-  const completedCount = applicableHabits.filter(h => h.completed[dateKey]).length;
+  const completedCount = applicableHabits.filter(h => {
+      if (h.frequency === 'N-times-week' && h.timesPerWeek) {
+        const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
+        let completedInWeek = 0;
+        for (let d = weekStart; d <= weekEnd; d.setDate(d.getDate() + 1)) {
+            const currentKey = format(d, 'yyyy-MM-dd');
+            if (h.completed[currentKey]) {
+                completedInWeek++;
+            }
+        }
+        return completedInWeek >= h.timesPerWeek;
+      }
+      return h.completed[dateKey]
+    }).length;
+
   const totalCount = applicableHabits.length;
   const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 

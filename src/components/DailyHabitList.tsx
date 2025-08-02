@@ -4,7 +4,7 @@ import * as React from 'react';
 import type { Habit } from '@/lib/types';
 import HabitItem from './HabitItem';
 import { Dices } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInDays, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 
 interface DailyHabitListProps {
   habits: Habit[];
@@ -23,6 +23,27 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, de
   const dailyHabits = habits.filter(h => {
     if (h.frequency === 'Daily') return true;
     if (h.frequency === 'Custom' && h.days?.includes(dayOfWeek)) return true;
+    if (h.frequency === 'Every-n-days' && h.interval && h.startDate) {
+        const start = parseISO(h.startDate);
+        const diff = differenceInDays(selectedDate, start);
+        return diff >= 0 && diff % h.interval === 0;
+    }
+    if (h.frequency === 'N-times-week' && h.timesPerWeek) {
+        // For N-times-week, we allow completing it any day of the week,
+        // but we need to check if it's already completed for the week.
+        const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
+        
+        let completedInWeek = 0;
+        for (let d = weekStart; d <= weekEnd; d.setDate(d.getDate() + 1)) {
+            const dateKey = format(d, 'yyyy-MM-dd');
+            if (h.completed[dateKey]) {
+                completedInWeek++;
+            }
+        }
+        // This habit is considered "daily" until the weekly goal is met.
+        return completedInWeek < h.timesPerWeek;
+    }
     return false;
   });
 

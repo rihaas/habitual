@@ -5,9 +5,10 @@ import type { Habit, TimeOfDay } from '@/lib/types';
 import HabitItem from './HabitItem';
 import { Dices, Sun, Moon, Sunset, Clock } from 'lucide-react';
 import { format, differenceInDays, startOfWeek, endOfWeek, parseISO, addDays } from 'date-fns';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 
 interface DailyHabitListProps {
   habits: Habit[];
@@ -17,6 +18,7 @@ interface DailyHabitListProps {
   deleteHabit: (habitId: string) => void;
   updateHabit: (habit: Omit<Habit, "completed">) => void;
   recentlyCompletedHabit: string | null;
+  onHabitOrderChange: (orderedHabits: Habit[]) => void;
 }
 
 const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -50,42 +52,47 @@ const SortableHabitItem = (props: Omit<React.ComponentProps<typeof HabitItem>, '
     );
 }
 
-
-export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, recentlyCompletedHabit }: DailyHabitListProps) {
+export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, recentlyCompletedHabit, onHabitOrderChange }: DailyHabitListProps) {
   
-  const dayOfWeek = dayMap[selectedDate.getDay()];
-
-  const getApplicableHabits = React.useCallback((habits: Habit[], date: Date) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+  
+  const getApplicableHabits = React.useCallback((h: Habit[], date: Date) => {
     const dayOfWeek = dayMap[date.getDay()];
-    return habits.filter(h => {
-        if (h.frequency === 'Daily') return true;
-        if (h.frequency === 'Custom' && h.days?.includes(dayOfWeek)) return true;
-        if (h.frequency === 'Every-n-days' && h.interval && h.startDate) {
-            const start = parseISO(h.startDate);
+    return h.filter(habit => {
+        if (habit.frequency === 'Daily') return true;
+        if (habit.frequency === 'Custom' && habit.days?.includes(dayOfWeek)) return true;
+        if (habit.frequency === 'Every-n-days' && habit.interval && habit.startDate) {
+            const start = parseISO(habit.startDate);
             const diff = differenceInDays(date, start);
-            return diff >= 0 && diff % h.interval === 0;
+            return diff >= 0 && diff % habit.interval === 0;
         }
-        if (h.frequency === 'N-times-week' && h.timesPerWeek) {
+        if (habit.frequency === 'N-times-week' && habit.timesPerWeek) {
             const weekStart = startOfWeek(date, { weekStartsOn: 1 }); 
             const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
             
             let completedInWeek = 0;
             for (let d = weekStart; d <= weekEnd; d = addDays(d, 1)) {
                 const dateKey = format(d, 'yyyy-MM-dd');
-                const progress = h.completed[dateKey];
+                const progress = habit.completed[dateKey];
                 if (progress !== undefined) {
-                    if (h.trackingType === 'Checkbox' && progress === 1) {
+                    if (habit.trackingType === 'Checkbox' && progress === 1) {
                         completedInWeek++;
-                    } else if (h.trackingType === 'Quantitative' && h.goalValue && progress >= h.goalValue) {
+                    } else if (habit.trackingType === 'Quantitative' && habit.goalValue && progress >= habit.goalValue) {
                         completedInWeek++;
                     }
                 }
             }
-            return completedInWeek < h.timesPerWeek;
+            return completedInWeek < habit.timesPerWeek;
         }
         return false;
       });
-  }, [selectedDate]);
+  }, []);
 
   const applicableHabits = getApplicableHabits(habits, selectedDate);
   
@@ -98,52 +105,79 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
         }
         groups[time]!.push(habit);
     }
+    // ensure order from DB is respected
+    for (const time in groups) {
+      groups[time as TimeOfDay]?.sort((a,b) => (a.order ?? 0) - (b.order ?? 0))
+    }
     return groups;
   }, [applicableHabits]);
 
-  return (
-    <div className="space-y-6">
-        {applicableHabits.length === 0 ? (
-             <div className="flex flex-col items-center justify-center h-full text-center p-8 border-2 border-dashed rounded-lg">
-                <Dices className="w-16 h-16 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold text-foreground">No Habits For Today</h3>
-                <p className="text-muted-foreground mt-1 text-sm">
-                 Enjoy your day or add a new habit!
-                </p>
-            </div>
-        ) : (
-            <SortableContext items={applicableHabits.map(h => h.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-6">
-                    {timeOfDayOrder.map(timeOfDay => {
-                        const habitsInGroup = groupedHabits[timeOfDay];
-                        if (!habitsInGroup || habitsInGroup.length === 0) return null;
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-                        return (
-                            <div key={timeOfDay}>
-                                <h3 className="text-lg font-headline font-semibold text-foreground mb-3 flex items-center gap-2">
-                                    {timeOfDayIcons[timeOfDay]}
-                                    {timeOfDay}
-                                </h3>
-                                <div className="space-y-3">
-                                    {habitsInGroup.map((habit) => (
-                                        <SortableHabitItem
-                                            key={habit.id}
-                                            habit={habit}
-                                            selectedDate={selectedDate}
-                                            toggleHabitCompletion={toggleHabitCompletion}
-                                            updateHabitProgress={updateHabitProgress}
-                                            deleteHabit={deleteHabit}
-                                            updateHabit={updateHabit}
-                                            showPoints={recentlyCompletedHabit === habit.id}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            </SortableContext>
-        )}
-    </div>
+    if (over && active.id !== over.id) {
+        const activeHabit = habits.find(h => h.id === active.id);
+        const overHabit = habits.find(h => h.id === over.id);
+
+        if (activeHabit?.timeOfDay !== overHabit?.timeOfDay) {
+            // Prevent dragging between different time-of-day groups
+            return;
+        }
+      
+        const oldIndex = habits.findIndex((item) => item.id === active.id);
+        const newIndex = habits.findIndex((item) => item.id === over.id);
+        const newOrder = arrayMove(habits, oldIndex, newIndex);
+        
+        const updatedHabitsWithOrder = newOrder.map((habit, index) => ({...habit, order: index}));
+        
+        onHabitOrderChange(updatedHabitsWithOrder);
+    }
+  };
+
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} id="habit-dnd-root">
+      <div className="space-y-6">
+          {applicableHabits.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8 border-2 border-dashed rounded-lg">
+                  <Dices className="w-16 h-16 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground">No Habits For Today</h3>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                  Enjoy your day or add a new habit!
+                  </p>
+              </div>
+          ) : (
+              timeOfDayOrder.map(timeOfDay => {
+                  const habitsInGroup = groupedHabits[timeOfDay];
+                  if (!habitsInGroup || habitsInGroup.length === 0) return null;
+
+                  return (
+                      <div key={timeOfDay}>
+                          <h3 className="text-lg font-headline font-semibold text-foreground mb-3 flex items-center gap-2">
+                              {timeOfDayIcons[timeOfDay]}
+                              {timeOfDay}
+                          </h3>
+                           <SortableContext items={habitsInGroup.map(h => h.id)} strategy={verticalListSortingStrategy}>
+                              <div className="space-y-3">
+                                  {habitsInGroup.map((habit) => (
+                                      <SortableHabitItem
+                                          key={habit.id}
+                                          habit={habit}
+                                          selectedDate={selectedDate}
+                                          toggleHabitCompletion={toggleHabitCompletion}
+                                          updateHabitProgress={updateHabitProgress}
+                                          deleteHabit={deleteHabit}
+                                          updateHabit={updateHabit}
+                                          showPoints={recentlyCompletedHabit === habit.id}
+                                      />
+                                  ))}
+                              </div>
+                          </SortableContext>
+                      </div>
+                  )
+              })
+          )}
+      </div>
+    </DndContext>
   );
 }

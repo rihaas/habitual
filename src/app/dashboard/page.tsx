@@ -12,8 +12,6 @@ import { ProgressTracker } from "@/components/ProgressTracker";
 import { AiSuggestionDialog } from "@/components/AiSuggestionDialog";
 import type { Habit } from "@/lib/types";
 import { GamificationTracker } from "@/components/GamificationTracker";
-import { DndContext, closestCenter, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import { HabitPacksDialog } from "@/components/HabitPacksDialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Package } from "lucide-react";
@@ -66,14 +64,6 @@ export default function DashboardPage() {
     };
     fetchHabits();
   }, [user, toast]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
 
   const addHabit = async (habit: Omit<Habit, "id" | "completed">) => {
     if (!user) return;
@@ -176,24 +166,11 @@ export default function DashboardPage() {
     updateHabitAndCompletion(habitId, { completed: newCompleted });
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    if (!user) return;
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setHabits((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        const newOrder = arrayMove(items, oldIndex, newIndex);
-        
-        const updatedHabitsWithOrder = newOrder.map((habit, index) => ({...habit, order: index}));
-        
-        // Update firebase in the background
-        setHabitsOrder(user.uid, updatedHabitsWithOrder.map(h => ({id: h.id, order: h.order ?? 0})));
-
-        return updatedHabitsWithOrder;
-      });
-    }
-  };
+  const handleHabitOrderChange = (orderedHabits: Habit[]) => {
+     if (!user) return;
+     setHabits(orderedHabits);
+     setHabitsOrder(user.uid, orderedHabits.map(h => ({id: h.id, order: h.order ?? 0})));
+  }
 
   const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
 
@@ -210,73 +187,72 @@ export default function DashboardPage() {
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} id="habit-dnd-root">
-        <div className="flex min-h-screen w-full flex-col bg-background font-body">
-        <AppHeader />
-        <main className="flex-1 p-4 sm:p-6 md:p-8 grid gap-8 lg:grid-cols-5">
-            <div className="lg:col-span-3 flex flex-col gap-8">
-            <Card className="flex-1 flex flex-col">
-                <CardHeader>
-                <CardTitle className="font-headline text-2xl">
-                    {format(selectedDate || new Date(), "eeee, MMMM do")}
-                </CardTitle>
-                <CardDescription>
-                    What will you accomplish today?
-                </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-6">
-                  <DailyHabitList
-                      habits={habits}
-                      selectedDate={selectedDate || new Date()}
-                      toggleHabitCompletion={toggleHabitCompletion}
-                      updateHabitProgress={updateHabitProgress}
-                      deleteHabit={deleteHabit}
-                      updateHabit={updateHabit}
-                      recentlyCompletedHabit={recentlyCompletedHabit}
-                  />
-                </CardContent>
-                <CardFooter>
-                <AddHabitDialog addHabit={addHabit} />
-                </CardFooter>
-            </Card>
-            
-            </div>
-            <div className="lg:col-span-2 flex flex-col gap-8">
-            <Card>
-                <CardContent className="p-2">
-                <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    className="rounded-md"
-                />
-                </CardContent>
-            </Card>
-            <GamificationTracker level={level} points={points} pointsToNextLevel={pointsToNextLevel} />
-            <ProgressTracker habits={habits} selectedDate={selectedDate || new Date()} />
-            <Card>
-                <CardHeader>
-                <CardTitle className="font-headline">Need Inspiration?</CardTitle>
-                <CardDescription>Get AI-powered suggestions or try a habit pack.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row gap-2">
-                  <AiSuggestionDialog addHabit={addHabit} completedHabits={completedHabitsToday}>
-                     <Button variant="outline" className="w-full">
-                        <Sparkles className="mr-2 h-4 w-4 text-yellow-500" />
-                        AI Suggestions
-                      </Button>
-                  </AiSuggestionDialog>
-                  <HabitPacksDialog addHabitPack={addHabitPack}>
-                     <Button variant="outline" className="w-full">
-                        <Package className="mr-2 h-4 w-4 text-blue-500" />
-                        Habit Packs
-                      </Button>
-                  </HabitPacksDialog>
-                </CardContent>
-            </Card>
-            </div>
-        </main>
+    <div className="flex min-h-screen w-full flex-col bg-background font-body">
+      <AppHeader />
+      <main className="flex-1 p-4 sm:p-6 md:p-8 grid gap-8 lg:grid-cols-5">
+        <div className="lg:col-span-3 flex flex-col gap-8">
+          <Card className="flex-1 flex flex-col">
+            <CardHeader>
+              <CardTitle className="font-headline text-2xl">
+                {format(selectedDate || new Date(), "eeee, MMMM do")}
+              </CardTitle>
+              <CardDescription>
+                What will you accomplish today?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 space-y-6">
+              <DailyHabitList
+                  habits={habits}
+                  selectedDate={selectedDate || new Date()}
+                  toggleHabitCompletion={toggleHabitCompletion}
+                  updateHabitProgress={updateHabitProgress}
+                  deleteHabit={deleteHabit}
+                  updateHabit={updateHabit}
+                  recentlyCompletedHabit={recentlyCompletedHabit}
+                  onHabitOrderChange={handleHabitOrderChange}
+              />
+            </CardContent>
+            <CardFooter>
+            <AddHabitDialog addHabit={addHabit} />
+            </CardFooter>
+          </Card>
+        
         </div>
-    </DndContext>
+        <div className="lg:col-span-2 flex flex-col gap-8">
+          <Card>
+            <CardContent className="p-2">
+            <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                className="rounded-md"
+            />
+            </CardContent>
+          </Card>
+          <GamificationTracker level={level} points={points} pointsToNextLevel={pointsToNextLevel} />
+          <ProgressTracker habits={habits} selectedDate={selectedDate || new Date()} />
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline">Need Inspiration?</CardTitle>
+              <CardDescription>Get AI-powered suggestions or try a habit pack.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-2">
+              <AiSuggestionDialog addHabit={addHabit} completedHabits={completedHabitsToday}>
+                 <Button variant="outline" className="w-full">
+                    <Sparkles className="mr-2 h-4 w-4 text-yellow-500" />
+                    AI Suggestions
+                  </Button>
+              </AiSuggestionDialog>
+              <HabitPacksDialog addHabitPack={addHabitPack}>
+                 <Button variant="outline" className="w-full">
+                    <Package className="mr-2 h-4 w-4 text-blue-500" />
+                    Habit Packs
+                  </Button>
+              </HabitPacksDialog>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
   );
 }

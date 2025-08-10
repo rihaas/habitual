@@ -1,76 +1,65 @@
+import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import type { Habit } from '@/lib/types';
 import { initialHabits } from '@/lib/data';
 
-const HABITS_STORAGE_KEY = 'habits_data';
+// Note: userId is now required for all operations to ensure data is user-specific.
 
-let memoryHabits: Habit[] = [];
+const getHabitsCollection = (userId: string) => {
+    return collection(db, `users/${userId}/habits`);
+};
 
-const isLocalStorageAvailable = () => typeof window !== 'undefined' && window.localStorage;
-
-const loadHabitsFromStorage = (): Habit[] => {
-    if (!isLocalStorageAvailable()) return [];
-    try {
-        const storedHabits = localStorage.getItem(HABITS_STORAGE_KEY);
-        if (storedHabits) {
-            return JSON.parse(storedHabits);
-        }
-    } catch (error) {
-        console.error("Error parsing habits from localStorage:", error);
+export const seedInitialHabits = async (userId: string): Promise<void> => {
+    const habitsCollection = getHabitsCollection(userId);
+    const snapshot = await getDocs(query(habitsCollection));
+    if (snapshot.empty) {
+        const promises = initialHabits.map((habit, index) => {
+            // remove the hardcoded id
+            const { id, ...rest } = habit;
+            return addDoc(habitsCollection, {...rest, order: index });
+        });
+        await Promise.all(promises);
     }
-    return [];
-}
+};
 
-const saveHabitsToStorage = (habits: Habit[]) => {
-    if (isLocalStorageAvailable()) {
-        localStorage.setItem(HABITS_STORAGE_KEY, JSON.stringify(habits));
+export const getHabits = async (userId: string): Promise<Habit[]> => {
+    const habitsCollection = getHabitsCollection(userId);
+    const q = query(habitsCollection, orderBy("order", "asc"));
+    const snapshot = await getDocs(q);
+    const habits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Habit));
+
+    // Seed initial habits if the user has none.
+    if (habits.length === 0) {
+        await seedInitialHabits(userId);
+        // Fetch again after seeding
+        const newSnapshot = await getDocs(q);
+        return newSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Habit));
     }
-    memoryHabits = habits;
-};
-
-
-// Initialize
-memoryHabits = loadHabitsFromStorage();
-if (memoryHabits.length === 0) {
-    memoryHabits = initialHabits.map((h, index) => ({ ...h, order: index }));
-    saveHabitsToStorage(memoryHabits);
-}
-
-
-export const getHabits = (): Habit[] => {
-    memoryHabits = loadHabitsFromStorage();
-    if (memoryHabits.length === 0) {
-        // This case handles server-side rendering or first load before hydration
-        return initialHabits.map((h, index) => ({ ...h, order: index }));
-    }
-    return [...memoryHabits].sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
-};
-
-export const setHabits = (habits: Habit[]) => {
-    saveHabitsToStorage(habits);
-}
-
-export const addHabit = (habit: Omit<Habit, 'id' | 'completed'>): Habit => {
-    const newHabit: Habit = {
-        ...habit,
-        id: new Date().toISOString(),
-        completed: {},
-        order: memoryHabits.length,
-    };
-    const updatedHabits = [...memoryHabits, newHabit];
-    saveHabitsToStorage(updatedHabits);
-    return newHabit;
-};
-
-export const updateHabit = (habitId: string, habitData: Partial<Habit>): void => {
-    const updatedHabits = memoryHabits.map(h => 
-        h.id === habitId ? { ...h, ...habitData } : h
-    );
-    saveHabitsToStorage(updatedHabits);
-};
-
-export const deleteHabit = (habitId: string): void => {
-    const updatedHabits = memoryHabits.filter(h => h.id !== habitId);
-    saveHabitsToStorage(updatedHabits);
-};
-
     
+    return habits;
+};
+
+export const addHabit = async (userId: string, habit: Omit<Habit, 'id' | 'completed'>): Promise<Habit> => {
+    const habitsCollection = getHabitsCollection(userId);
+    const docRef = await addDoc(habitsCollection, {
+        ...habit,
+        completed: {}, // Ensure completed is an empty object
+    });
+    return { ...habit, id: docRef.id, completed: {} };
+};
+
+export const updateHabit = async (userId: string, habitId: string, habitData: Partial<Omit<Habit, 'id'>>): Promise<void> => {
+    const habitDoc = doc(db, `users/${userId}/habits`, habitId);
+    await updateDoc(habitDoc, habitData);
+};
+
+
+export const deleteHabit = async (userId: string, habitId: string): Promise<void> => {
+    const habitDoc = doc(db, `users/${userId}/habits`, habitId);
+    await deleteDoc(habitDoc);
+};
+
+export const setHabitsOrder = async (userId: string, habits: {id: string, order: number}[]) => {
+    const promises = habits.map(({id, order}) => updateHabit(userId, id, { order }));
+    await Promise.all(promises);
+}

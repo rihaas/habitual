@@ -6,18 +6,28 @@ import { Target, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from './ThemeToggle';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 
 export function AppHeader() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('isLoggedIn');
-    toast({
-      title: 'Logged Out',
-      description: 'You have been successfully logged out.',
-    });
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: 'Logged Out',
+        description: 'You have been successfully logged out.',
+      });
+      router.push('/');
+    } catch (error) {
+      toast({
+        title: 'Logout Failed',
+        description: 'An error occurred while logging out.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (

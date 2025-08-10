@@ -17,15 +17,19 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { HabitPacksDialog } from "@/components/HabitPacksDialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Package } from "lucide-react";
-import { getHabits, addHabit as addHabitService, updateHabit as updateHabitService, deleteHabit as deleteHabitService, setHabits as setHabitsService } from "@/services/habitService";
+import { getHabits, addHabit as addHabitService, updateHabit as updateHabitService, deleteHabit as deleteHabitService, setHabitsOrder } from "@/services/habitService";
 import { Skeleton } from "@/components/ui/skeleton";
-import { initialHabits } from "@/lib/data";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 const POINTS_PER_HABIT = 10;
 const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const [user, setUser] = React.useState<User | null>(null);
   const [habits, setHabits] = React.useState<Habit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date());
@@ -35,28 +39,33 @@ export default function DashboardPage() {
   const [recentlyCompletedHabit, setRecentlyCompletedHabit] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-      if (!isLoggedIn) {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
         router.replace('/');
       }
-    }
+    });
+
+    return () => unsubscribe();
   }, [router]);
   
   React.useEffect(() => {
-    const fetchHabits = () => {
+    const fetchHabits = async () => {
+      if (!user) return;
       setIsLoading(true);
-      const fetchedHabits = getHabits();
-      if (fetchedHabits.length === 0) {
-        setHabitsService(initialHabits);
-        setHabits(initialHabits);
-      } else {
+      try {
+        const fetchedHabits = await getHabits(user.uid);
         setHabits(fetchedHabits);
+      } catch(e) {
+        console.error(e);
+        toast({ title: "Error", description: "Could not load your habits.", variant: "destructive"})
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     fetchHabits();
-  }, []);
+  }, [user, toast]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -66,8 +75,9 @@ export default function DashboardPage() {
     })
   );
 
-  const addHabit = (habit: Omit<Habit, "id" | "completed">) => {
-    const newHabit = addHabitService(habit);
+  const addHabit = async (habit: Omit<Habit, "id" | "completed">) => {
+    if (!user) return;
+    const newHabit = await addHabitService(user.uid, habit);
     if(newHabit) {
       setHabits((prev) => [...prev, newHabit]);
     }
@@ -79,13 +89,15 @@ export default function DashboardPage() {
     });
   }
 
-  const deleteHabit = (habitId: string) => {
-    deleteHabitService(habitId);
+  const deleteHabit = async (habitId: string) => {
+    if (!user) return;
+    await deleteHabitService(user.uid, habitId);
     setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
   };
 
-  const updateHabit = (updatedHabit: Omit<Habit, "completed">) => {
-    updateHabitService(updatedHabit.id, updatedHabit);
+  const updateHabit = async (updatedHabit: Omit<Habit, "completed">) => {
+    if (!user) return;
+    await updateHabitService(user.uid, updatedHabit.id, updatedHabit);
     setHabits((prevHabits) =>
       prevHabits.map((habit) =>
         habit.id === updatedHabit.id ? { ...habit, ...updatedHabit } : habit
@@ -124,13 +136,15 @@ export default function DashboardPage() {
     }
   }
   
-  const updateHabitAndCompletion = (habitId: string, updatedHabitData: Partial<Habit>) => {
+  const updateHabitAndCompletion = async (habitId: string, updatedHabitData: Partial<Habit>) => {
+    if (!user) return;
+
     const habit = habits.find(h => h.id === habitId);
     if (!habit) return;
 
     const wasCompleted = isHabitCompleted(habit, selectedDate || new Date());
 
-    updateHabitService(habitId, updatedHabitData);
+    await updateHabitService(user.uid, habitId, updatedHabitData);
     
     setHabits(prev => prev.map(h => h.id === habitId ? {...h, ...updatedHabitData} : h));
     
@@ -163,6 +177,7 @@ export default function DashboardPage() {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (!user) return;
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setHabits((items) => {
@@ -171,7 +186,9 @@ export default function DashboardPage() {
         const newOrder = arrayMove(items, oldIndex, newIndex);
         
         const updatedHabitsWithOrder = newOrder.map((habit, index) => ({...habit, order: index}));
-        setHabitsService(updatedHabitsWithOrder);
+        
+        // Update firebase in the background
+        setHabitsOrder(user.uid, updatedHabitsWithOrder.map(h => ({id: h.id, order: h.order ?? 0})));
 
         return updatedHabitsWithOrder;
       });
@@ -179,6 +196,18 @@ export default function DashboardPage() {
   };
 
   const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
+
+  if (!user || isLoading) {
+    return (
+        <div className="flex min-h-screen w-full flex-col bg-background font-body items-center justify-center">
+          <div className="space-y-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+          </div>
+      </div>
+    )
+  }
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} id="habit-dnd-root">
@@ -196,13 +225,6 @@ export default function DashboardPage() {
                 </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-6">
-                {isLoading ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </div>
-                ) : (
                   <DailyHabitList
                       habits={habits}
                       selectedDate={selectedDate || new Date()}
@@ -212,7 +234,6 @@ export default function DashboardPage() {
                       updateHabit={updateHabit}
                       recentlyCompletedHabit={recentlyCompletedHabit}
                   />
-                )}
                 </CardContent>
                 <CardFooter>
                 <AddHabitDialog addHabit={addHabit} />
@@ -259,5 +280,3 @@ export default function DashboardPage() {
     </DndContext>
   );
 }
-
-    

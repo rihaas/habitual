@@ -8,46 +8,63 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Target } from 'lucide-react';
-
-const HARDCODED_USER = '316472678534';
-const HARDCODED_PASS = 'Rihu1122@';
+import { signInWithEmailAndPassword, onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [username, setUsername] = React.useState('');
+  const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
-
+  const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
+  
   React.useEffect(() => {
-    // Redirect if already logged in
-    if (sessionStorage.getItem('isLoggedIn')) {
-      router.push('/dashboard');
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.push('/dashboard');
+      } else {
+        setIsCheckingAuth(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, [router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
-      if (username === HARDCODED_USER && password === HARDCODED_PASS) {
-        sessionStorage.setItem('isLoggedIn', 'true');
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
         toast({
           title: 'Login Successful',
           description: 'Welcome back!',
         });
         router.push('/dashboard');
-      } else {
+    } catch (error: any) {
+        let description = 'An unexpected error occurred.';
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            description = 'Invalid email or password.';
+        }
         toast({
           title: 'Login Failed',
-          description: 'Invalid username or password.',
+          description: description,
           variant: 'destructive',
         });
+    } finally {
         setIsLoading(false);
-      }
-    }, 500); // Simulate network delay
+    }
   };
+
+  if (isCheckingAuth) {
+    return (
+        <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
+            <p>Loading...</p>
+        </div>
+    );
+  }
+
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
@@ -64,13 +81,13 @@ export default function LoginPage() {
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="username"
-                  type="text"
-                  placeholder="Username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>

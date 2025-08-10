@@ -33,6 +33,7 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Habit name must be at least 2 characters.' }).max(50),
+  category: z.string().optional(),
   priority: z.enum(['High', 'Medium', 'Low']),
   timeOfDay: TimeOfDayEnum,
   frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
@@ -79,17 +80,19 @@ const formSchema = z.object({
 
 type AddHabitDialogProps = {
   addHabit: (habit: Omit<Habit, 'id' | 'completed'>) => void;
+  categories: string[];
 };
 
 const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
-export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
+export function AddHabitDialog({ addHabit, categories }: AddHabitDialogProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
+      category: '',
       frequency: 'Daily',
       priority: 'Medium',
       timeOfDay: 'Anytime',
@@ -104,6 +107,7 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
   function onSubmit(values: z.infer<typeof formSchema>) {
     const habitData: Omit<Habit, 'id' | 'completed'> = {
       name: values.name,
+      category: values.category,
       priority: values.priority,
       timeOfDay: values.timeOfDay,
       frequency: values.frequency,
@@ -156,6 +160,23 @@ export function AddHabitDialog({ addHabit }: AddHabitDialogProps) {
                     <FormControl>
                       <Input placeholder="e.g., Meditate for 10 minutes" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Health, Learning" {...field} list="category-suggestions" />
+                    </FormControl>
+                     <datalist id="category-suggestions">
+                        {categories.map(c => <option key={c} value={c} />)}
+                    </datalist>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -32,6 +32,7 @@ interface HabitItemProps {
   updateHabit: (habit: Omit<Habit, 'completed'>) => void;
   showPoints?: boolean;
   dragHandleProps: any;
+  categories: string[];
 }
 
 const priorityVariantMap: Record<Habit['priority'], 'destructive' | 'secondary' | 'default'> = {
@@ -40,7 +41,7 @@ const priorityVariantMap: Record<Habit['priority'], 'destructive' | 'secondary' 
   Low: 'default',
 };
 
-export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, showPoints, dragHandleProps }: HabitItemProps) {
+export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, showPoints, dragHandleProps, categories }: HabitItemProps) {
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const progress = habit.completed[dateKey] ?? 0;
   
@@ -139,6 +140,7 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
                 </p>
             )}
         </div>
+        {habit.category && <Badge variant="outline">{habit.category}</Badge>}
         <Badge variant={priorityVariantMap[habit.priority]} className="capitalize">
           {habit.priority}
         </Badge>
@@ -176,6 +178,7 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
         updateHabit={updateHabit}
         isOpen={isEditDialogOpen}
         setIsOpen={setIsEditDialogOpen}
+        categories={categories}
       />
     </>
   );

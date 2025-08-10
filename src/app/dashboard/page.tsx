@@ -24,6 +24,17 @@ import { useToast } from "@/hooks/use-toast";
 const POINTS_PER_HABIT = 10;
 const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
 
+const motivationalQuotes = [
+  "The secret of getting ahead is getting started.",
+  "You are what you repeatedly do. Excellence, then, is not an act, but a habit.",
+  "Success is the sum of small efforts, repeated day in and day out.",
+  "The journey of a thousand miles begins with a single step.",
+  "Believe you can and you're halfway there.",
+  "Don't watch the clock; do what it does. Keep going.",
+  "Well done is better than well said.",
+  "A year from now you may wish you had started today."
+];
+
 export default function DashboardPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -121,6 +132,12 @@ export default function DashboardPage() {
         });
         setRecentlyCompletedHabit(habitId);
         setTimeout(() => setRecentlyCompletedHabit(null), 1500);
+        
+        toast({
+          title: "Great job!",
+          description: motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)],
+        });
+
     } else if (wasCompleted && !isNowCompleted) {
         setPoints(p => Math.max(0, p - POINTS_PER_HABIT));
     }
@@ -174,6 +191,12 @@ export default function DashboardPage() {
 
   const completedHabitsToday = habits.filter(h => isHabitCompleted(h, selectedDate || new Date())).map(h => h.name).join(', ');
 
+  const habitCategories = React.useMemo(() => {
+    const categories = new Set(habits.map(h => h.category).filter(Boolean) as string[]);
+    return Array.from(categories);
+  }, [habits]);
+
+
   if (!user || isLoading) {
     return (
         <div className="flex min-h-screen w-full flex-col bg-background font-body items-center justify-center">
@@ -210,10 +233,11 @@ export default function DashboardPage() {
                   updateHabit={updateHabit}
                   recentlyCompletedHabit={recentlyCompletedHabit}
                   onHabitOrderChange={handleHabitOrderChange}
+                  categories={habitCategories}
               />
             </CardContent>
             <CardFooter>
-            <AddHabitDialog addHabit={addHabit} />
+            <AddHabitDialog addHabit={addHabit} categories={habitCategories}/>
             </CardFooter>
           </Card>
         

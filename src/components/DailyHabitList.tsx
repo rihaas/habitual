@@ -3,12 +3,14 @@
 import * as React from 'react';
 import type { Habit, TimeOfDay } from '@/lib/types';
 import HabitItem from './HabitItem';
-import { Dices, Sun, Moon, Sunset, Clock } from 'lucide-react';
+import { Dices, Sun, Moon, Sunset, Clock, Folder } from 'lucide-react';
 import { format, differenceInDays, startOfWeek, endOfWeek, parseISO, addDays } from 'date-fns';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+
 
 interface DailyHabitListProps {
   habits: Habit[];
@@ -19,6 +21,7 @@ interface DailyHabitListProps {
   updateHabit: (habit: Omit<Habit, "completed">) => void;
   recentlyCompletedHabit: string | null;
   onHabitOrderChange: (orderedHabits: Habit[]) => void;
+  categories: string[];
 }
 
 const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -32,7 +35,7 @@ const timeOfDayIcons: Record<TimeOfDay, React.ReactNode> = {
     Anytime: <Clock className="w-5 h-5" />,
 };
 
-const SortableHabitItem = (props: Omit<React.ComponentProps<typeof HabitItem>, 'dragHandleProps'>) => {
+const SortableHabitItem = (props: Omit<React.ComponentProps<typeof HabitItem>, 'dragHandleProps'> & { categories: string[] }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: props.habit.id });
 
     const style = {
@@ -52,8 +55,10 @@ const SortableHabitItem = (props: Omit<React.ComponentProps<typeof HabitItem>, '
     );
 }
 
-export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, recentlyCompletedHabit, onHabitOrderChange }: DailyHabitListProps) {
+export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, updateHabitProgress, deleteHabit, updateHabit, recentlyCompletedHabit, onHabitOrderChange, categories }: DailyHabitListProps) {
   
+  const [categoryFilter, setCategoryFilter] = React.useState<string>("All");
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -62,9 +67,11 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
     })
   );
   
-  const getApplicableHabits = React.useCallback((h: Habit[], date: Date) => {
+  const getApplicableHabits = React.useCallback((h: Habit[], date: Date, category: string) => {
     const dayOfWeek = dayMap[date.getDay()];
     return h.filter(habit => {
+        if (category !== 'All' && habit.category !== category) return false;
+
         if (habit.frequency === 'Daily') return true;
         if (habit.frequency === 'Custom' && habit.days?.includes(dayOfWeek)) return true;
         if (habit.frequency === 'Every-n-days' && habit.interval && habit.startDate) {
@@ -94,7 +101,7 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
       });
   }, []);
 
-  const applicableHabits = getApplicableHabits(habits, selectedDate);
+  const applicableHabits = getApplicableHabits(habits, selectedDate, categoryFilter);
   
   const groupedHabits = React.useMemo(() => {
     const groups: Partial<Record<TimeOfDay, Habit[]>> = {};
@@ -138,12 +145,26 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} id="habit-dnd-root">
       <div className="space-y-6">
+        <div className="flex items-center gap-2">
+            <Folder className="w-5 h-5 text-muted-foreground" />
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="All">All Categories</SelectItem>
+                    {categories.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
           {applicableHabits.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-8 border-2 border-dashed rounded-lg">
                   <Dices className="w-16 h-16 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold text-foreground">No Habits For Today</h3>
                   <p className="text-muted-foreground mt-1 text-sm">
-                  Enjoy your day or add a new habit!
+                  Enjoy your day, try a different filter, or add a new habit!
                   </p>
               </div>
           ) : (
@@ -169,6 +190,7 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
                                           deleteHabit={deleteHabit}
                                           updateHabit={updateHabit}
                                           showPoints={recentlyCompletedHabit === habit.id}
+                                          categories={categories}
                                       />
                                   ))}
                               </div>

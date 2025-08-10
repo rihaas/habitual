@@ -33,6 +33,7 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Habit name must be at least 2 characters.' }).max(50),
+  category: z.string().optional(),
   priority: z.enum(['High', 'Medium', 'Low']),
   timeOfDay: TimeOfDayEnum,
   frequency: z.enum(['Daily', 'Weekly', 'Custom', 'N-times-week', 'Every-n-days']),
@@ -82,16 +83,18 @@ type EditHabitDialogProps = {
   updateHabit: (habit: Omit<Habit, 'completed'>) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  categories: string[];
 };
 
 const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
-export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditHabitDialogProps) {
+export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categories }: EditHabitDialogProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: habit.name,
+      category: habit.category || '',
       frequency: habit.frequency,
       priority: habit.priority,
       timeOfDay: habit.timeOfDay || 'Anytime',
@@ -111,6 +114,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
     if (isOpen) {
       form.reset({
         name: habit.name,
+        category: habit.category || '',
         frequency: habit.frequency,
         priority: habit.priority,
         timeOfDay: habit.timeOfDay || 'Anytime',
@@ -128,6 +132,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
     const habitData: Omit<Habit, 'id' | 'completed'> = {
       ...habit,
       name: values.name,
+      category: values.category,
       priority: values.priority,
       timeOfDay: values.timeOfDay,
       frequency: values.frequency,
@@ -192,6 +197,24 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen }: EditH
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Health, Learning" {...field} list="category-suggestions" />
+                    </FormControl>
+                     <datalist id="category-suggestions">
+                        {categories.map(c => <option key={c} value={c} />)}
+                    </datalist>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
                <FormField
                   control={form.control}
                   name="trackingType"

@@ -1,19 +1,20 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
-const firebaseConfig = {
-  "projectId": "habitual-mfhmn",
-  "appId": "1:923176920941:web:f0ec8f084d489d405adc64",
-  "storageBucket": "habitual-mfhmn.firebasestorage.app",
-  "apiKey": "AIzaSyBSmmUDse6BU6d41j0wpNJ_PiN8dR-3Azs",
-  "authDomain": "habitual-mfhmn.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "923176920941"
+const firebaseConfig: FirebaseOptions = {
+    apiKey: "AIzaSyBSmmUDse6BU6d41j0wpNJ_PiN8dR-3Azs",
+    authDomain: "habitual-mfhmn.firebaseapp.com",
+    projectId: "habitual-mfhmn",
+    storageBucket: "habitual-mfhmn.firebasestorage.app",
+    messagingSenderId: "923176920941",
+    appId: "1:923176920941:web:f0ec8f084d489d405adc64"
 };
 
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+const auth = getAuth(app);
 
-export { app, db };
+export { app, auth };
+
+    

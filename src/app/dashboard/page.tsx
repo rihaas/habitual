@@ -17,10 +17,10 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { HabitPacksDialog } from "@/components/HabitPacksDialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Package } from "lucide-react";
-import { getHabits, addHabit as addHabitService, updateHabit as updateHabitService, deleteHabit as deleteHabitService } from "@/services/habitService";
+import { getHabits, addHabit as addHabitService, updateHabit as updateHabitService, deleteHabit as deleteHabitService, setHabits as setHabitsService } from "@/services/habitService";
 import { Skeleton } from "@/components/ui/skeleton";
+import { initialHabits } from "@/lib/data";
 
-const HARDCODED_USER_ID = '316472678534';
 const POINTS_PER_HABIT = 10;
 const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
 
@@ -44,10 +44,15 @@ export default function DashboardPage() {
   }, [router]);
   
   React.useEffect(() => {
-    const fetchHabits = async () => {
+    const fetchHabits = () => {
       setIsLoading(true);
-      const fetchedHabits = await getHabits(HARDCODED_USER_ID);
-      setHabits(fetchedHabits);
+      const fetchedHabits = getHabits();
+      if (fetchedHabits.length === 0) {
+        setHabitsService(initialHabits);
+        setHabits(initialHabits);
+      } else {
+        setHabits(fetchedHabits);
+      }
       setIsLoading(false);
     };
     fetchHabits();
@@ -61,8 +66,8 @@ export default function DashboardPage() {
     })
   );
 
-  const addHabit = async (habit: Omit<Habit, "id" | "completed">) => {
-    const newHabit = await addHabitService(HARDCODED_USER_ID, habit);
+  const addHabit = (habit: Omit<Habit, "id" | "completed">) => {
+    const newHabit = addHabitService(habit);
     if(newHabit) {
       setHabits((prev) => [...prev, newHabit]);
     }
@@ -74,13 +79,13 @@ export default function DashboardPage() {
     });
   }
 
-  const deleteHabit = async (habitId: string) => {
-    await deleteHabitService(HARDCODED_USER_ID, habitId);
+  const deleteHabit = (habitId: string) => {
+    deleteHabitService(habitId);
     setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
   };
 
-  const updateHabit = async (updatedHabit: Omit<Habit, "completed">) => {
-    await updateHabitService(HARDCODED_USER_ID, updatedHabit.id, updatedHabit);
+  const updateHabit = (updatedHabit: Omit<Habit, "completed">) => {
+    updateHabitService(updatedHabit.id, updatedHabit);
     setHabits((prevHabits) =>
       prevHabits.map((habit) =>
         habit.id === updatedHabit.id ? { ...habit, ...updatedHabit } : habit
@@ -119,13 +124,13 @@ export default function DashboardPage() {
     }
   }
   
-  const updateHabitAndCompletion = async (habitId: string, updatedHabitData: Partial<Habit>) => {
+  const updateHabitAndCompletion = (habitId: string, updatedHabitData: Partial<Habit>) => {
     const habit = habits.find(h => h.id === habitId);
     if (!habit) return;
 
     const wasCompleted = isHabitCompleted(habit, selectedDate || new Date());
 
-    await updateHabitService(HARDCODED_USER_ID, habitId, updatedHabitData);
+    updateHabitService(habitId, updatedHabitData);
     
     setHabits(prev => prev.map(h => h.id === habitId ? {...h, ...updatedHabitData} : h));
     
@@ -164,10 +169,11 @@ export default function DashboardPage() {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
         const newOrder = arrayMove(items, oldIndex, newIndex);
-        newOrder.forEach((habit, index) => {
-          updateHabitService(HARDCODED_USER_ID, habit.id, { order: index });
-        });
-        return newOrder;
+        
+        const updatedHabitsWithOrder = newOrder.map((habit, index) => ({...habit, order: index}));
+        setHabitsService(updatedHabitsWithOrder);
+
+        return updatedHabitsWithOrder;
       });
     }
   };
@@ -253,3 +259,5 @@ export default function DashboardPage() {
     </DndContext>
   );
 }
+
+    

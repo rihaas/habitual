@@ -23,6 +23,14 @@ export const HabitSchema = z.object({
 
 export type Habit = z.infer<typeof HabitSchema>;
 
+export const JournalEntrySchema = z.object({
+  id: z.string(),
+  date: z.string(), // YYYY-MM-DD
+  content: z.string(),
+});
+export type JournalEntry = z.infer<typeof JournalEntrySchema>;
+
+
 export const SuggestHabitPackInputSchema = z.object({
   theme: z.string().describe('The theme for the habit pack, e.g., "Morning Routine", "Digital Detox", "Fitness Jumpstart".'),
 });

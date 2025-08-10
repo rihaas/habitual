@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { JournalSection } from "@/components/JournalSection";
 
 const POINTS_PER_HABIT = 10;
 const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
@@ -253,6 +254,7 @@ export default function DashboardPage() {
             />
             </CardContent>
           </Card>
+          <JournalSection user={user} selectedDate={selectedDate || new Date()} />
           <GamificationTracker level={level} points={points} pointsToNextLevel={pointsToNextLevel} />
           <ProgressTracker habits={habits} selectedDate={selectedDate || new Date()} />
           <Card>

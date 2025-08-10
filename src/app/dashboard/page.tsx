@@ -109,13 +109,18 @@ export default function DashboardPage() {
   
   const isHabitCompleted = (habit: Habit, date: Date) => {
     const dateKey = format(date, 'yyyy-MM-dd');
-    const progress = habit.completed[dateKey];
-    if (progress === undefined) return false;
+    const completionData = habit.completed[dateKey];
+    if (completionData === undefined) return false;
+
+    if (habit.microHabits && habit.microHabits.length > 0) {
+        if (typeof completionData !== 'object') return false;
+        return habit.microHabits.every(mh => completionData[mh.id]);
+    }
     if (habit.trackingType === 'Checkbox') {
-      return progress === 1;
+      return completionData === 1;
     }
     if (habit.trackingType === 'Quantitative' && habit.goalValue) {
-      return progress >= habit.goalValue;
+      return typeof completionData === 'number' && completionData >= habit.goalValue;
     }
     return false;
   };
@@ -162,13 +167,20 @@ export default function DashboardPage() {
     handlePointsUpdate(wasCompleted, isNowCompleted, habitId);
   }
 
-  const toggleHabitCompletion = (habitId: string, date: Date) => {
+  const toggleHabitCompletion = (habitId: string, date: Date, microHabitId?: string) => {
     const dateKey = format(date, "yyyy-MM-dd");
     const habit = habits.find(h => h.id === habitId);
     if (!habit) return;
 
-    const newCompleted = { ...habit.completed };
-    newCompleted[dateKey] = newCompleted[dateKey] === 1 ? 0 : 1;
+    const newCompleted = { ...(habit.completed || {}) };
+
+    if (habit.microHabits && habit.microHabits.length > 0 && microHabitId) {
+        const microCompletions = typeof newCompleted[dateKey] === 'object' ? { ...(newCompleted[dateKey] as Record<string, boolean>) } : {};
+        microCompletions[microHabitId] = !microCompletions[microHabitId];
+        newCompleted[dateKey] = microCompletions;
+    } else {
+        newCompleted[dateKey] = newCompleted[dateKey] === 1 ? 0 : 1;
+    }
     
     updateHabitAndCompletion(habitId, { completed: newCompleted });
   };

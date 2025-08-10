@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -23,13 +23,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Habit } from '@/lib/types';
+import type { Habit, MicroHabit } from '@/lib/types';
 import { TimeOfDayEnum } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { format } from 'date-fns';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Plus, Trash2 } from 'lucide-react';
+import { Separator } from './ui/separator';
 
+const microHabitSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, { message: "Micro-habit name cannot be empty." }),
+});
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Habit name must be at least 2 characters.' }).max(50),
@@ -43,6 +49,7 @@ const formSchema = z.object({
   trackingType: z.enum(['Checkbox', 'Quantitative']),
   goalValue: z.coerce.number().min(1).optional(),
   goalUnit: z.string().max(20).optional(),
+  microHabits: z.array(microHabitSchema).optional(),
 }).refine(data => {
     if (data.frequency === 'Custom' && (!data.days || data.days.length === 0)) {
         return false;
@@ -104,7 +111,13 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
       trackingType: habit.trackingType || 'Checkbox',
       goalValue: habit.goalValue,
       goalUnit: habit.goalUnit,
+      microHabits: habit.microHabits || [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "microHabits"
   });
 
   const frequency = form.watch('frequency');
@@ -124,6 +137,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
         trackingType: habit.trackingType || 'Checkbox',
         goalValue: habit.goalValue,
         goalUnit: habit.goalUnit,
+        microHabits: habit.microHabits || [],
       });
     }
   }, [isOpen, habit, form]);
@@ -137,6 +151,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
       timeOfDay: values.timeOfDay,
       frequency: values.frequency,
       trackingType: values.trackingType,
+      microHabits: values.microHabits,
     };
     
     delete habitData.days;
@@ -161,6 +176,8 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
     if (values.trackingType === 'Quantitative') {
         habitData.goalValue = values.goalValue;
         habitData.goalUnit = values.goalUnit;
+    } else {
+        habitData.microHabits = values.microHabits;
     }
 
 
@@ -223,7 +240,12 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
                       <FormLabel>How to track?</FormLabel>
                       <FormControl>
                         <RadioGroup
-                          onValueChange={field.onChange}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                             if (value === 'Quantitative') {
+                                remove(); // remove all microhabits
+                            }
+                          }}
                           defaultValue={field.value}
                           className="flex space-x-4"
                         >
@@ -232,7 +254,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
                               <RadioGroupItem value="Checkbox" />
                             </FormControl>
                             <FormLabel className="font-normal">
-                              Checkbox
+                              Checkbox / Micro-habits
                             </FormLabel>
                           </FormItem>
                           <FormItem className="flex items-center space-x-2 space-y-0">
@@ -281,7 +303,37 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
                          </div>
                     </div>
                 )}
+                 {trackingType === 'Checkbox' && (
+                  <div className="space-y-3">
+                    <Separator />
+                    <FormLabel>Micro-habits (Optional)</FormLabel>
+                    {fields.map((field, index) => (
+                      <div key={field.id} className="flex items-center gap-2">
+                          <FormField
+                          control={form.control}
+                          name={`microHabits.${index}.name`}
+                          render={({ field }) => (
+                              <FormItem className="flex-1">
+                                  <FormControl>
+                                      <Input placeholder={`Micro-habit ${index + 1}`} {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                          />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                              <Trash2 className="h-4 w-4" />
+                          </Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: "" })}>
+                        <Plus className="mr-2 h-4 w-4" /> Add Micro-habit
+                    </Button>
+                  </div>
+                 )}
                 
+                 <Separator />
+
                  <FormField
                     control={form.control}
                     name="timeOfDay"

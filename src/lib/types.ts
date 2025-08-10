@@ -3,6 +3,12 @@ import { z } from 'zod';
 export const TimeOfDayEnum = z.enum(['Anytime', 'Morning', 'Afternoon', 'Evening']);
 export type TimeOfDay = z.infer<typeof TimeOfDayEnum>;
 
+export const MicroHabitSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+export type MicroHabit = z.infer<typeof MicroHabitSchema>;
+
 export const HabitSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -16,9 +22,10 @@ export const HabitSchema = z.object({
   trackingType: z.enum(['Checkbox', 'Quantitative']).default('Checkbox'),
   goalValue: z.number().optional(),
   goalUnit: z.string().optional(),
-  completed: z.record(z.string(), z.number()), // For Checkbox: 1 for true, 0 for false. For Quantitative: the actual value.
+  completed: z.record(z.string(), z.union([z.number(), z.record(z.string(), z.boolean())])), // For Checkbox: 1 for true, 0 for false. For Quantitative: the actual value. For MicroHabits: a record of microhabitId to boolean.
   category: z.string().optional(),
   order: z.number().optional(),
+  microHabits: z.array(MicroHabitSchema).optional(),
 });
 
 export type Habit = z.infer<typeof HabitSchema>;

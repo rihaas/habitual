@@ -16,8 +16,9 @@ export const HabitSchema = z.object({
   trackingType: z.enum(['Checkbox', 'Quantitative']).default('Checkbox'),
   goalValue: z.number().optional(),
   goalUnit: z.string().optional(),
-  completed: z.record(z.number()), // For Checkbox: 1 for true, 0 for false. For Quantitative: the actual value.
+  completed: z.record(z.string(), z.number()), // For Checkbox: 1 for true, 0 for false. For Quantitative: the actual value.
   category: z.string().optional(),
+  order: z.number().optional(),
 });
 
 export type Habit = z.infer<typeof HabitSchema>;
@@ -30,7 +31,7 @@ export type SuggestHabitPackInput = z.infer<typeof SuggestHabitPackInputSchema>;
 const HabitPackSchema = z.object({
     name: z.string().describe("A creative and engaging name for the habit pack."),
     description: z.string().describe("A short, motivating description of the habit pack and its benefits."),
-    habits: z.array(HabitSchema.omit({ id: true, completed: true, category: true })).describe("A list of 3-5 related habits for the pack.")
+    habits: z.array(HabitSchema.omit({ id: true, completed: true, category: true, order: true })).describe("A list of 3-5 related habits for the pack.")
 })
 
 export const SuggestHabitPackOutputSchema = z.object({

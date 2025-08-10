@@ -1,6 +1,7 @@
 import { type Habit } from './types';
-import { format, subDays } from 'date-fns';
 
+// This file is no longer the primary source of data, 
+// but can be kept for reference or seeding purposes.
 export const initialHabits: Habit[] = [
   {
     id: '1',

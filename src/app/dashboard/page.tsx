@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { addDays, format, startOfWeek } from "date-fns";
+import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { AppHeader } from "@/components/Header";
@@ -11,20 +11,23 @@ import { AddHabitDialog } from "@/components/AddHabitDialog";
 import { ProgressTracker } from "@/components/ProgressTracker";
 import { AiSuggestionDialog } from "@/components/AiSuggestionDialog";
 import type { Habit } from "@/lib/types";
-import { initialHabits } from "@/lib/data";
 import { GamificationTracker } from "@/components/GamificationTracker";
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { HabitPacksDialog } from "@/components/HabitPacksDialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Package } from "lucide-react";
+import { getHabits, addHabit as addHabitService, updateHabit as updateHabitService, deleteHabit as deleteHabitService } from "@/services/habitService";
+import { Skeleton } from "@/components/ui/skeleton";
 
+const HARDCODED_USER_ID = '316472678534';
 const POINTS_PER_HABIT = 10;
 const getPointsForNextLevel = (level: number) => Math.round(100 * Math.pow(level, 1.5));
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [habits, setHabits] = React.useState<Habit[]>(initialHabits);
+  const [habits, setHabits] = React.useState<Habit[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date());
   const [level, setLevel] = React.useState(1);
   const [points, setPoints] = React.useState(0);
@@ -39,8 +42,17 @@ export default function DashboardPage() {
       }
     }
   }, [router]);
+  
+  React.useEffect(() => {
+    const fetchHabits = async () => {
+      setIsLoading(true);
+      const fetchedHabits = await getHabits(HARDCODED_USER_ID);
+      setHabits(fetchedHabits);
+      setIsLoading(false);
+    };
+    fetchHabits();
+  }, []);
 
-  // Define sensors for DndContext
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -49,30 +61,26 @@ export default function DashboardPage() {
     })
   );
 
-
-  const addHabit = (habit: Omit<Habit, "id" | "completed">) => {
-    const newHabit: Habit = {
-      ...habit,
-      id: crypto.randomUUID(),
-      completed: {},
-    };
-    setHabits((prev) => [...prev, newHabit]);
+  const addHabit = async (habit: Omit<Habit, "id" | "completed">) => {
+    const newHabit = await addHabitService(HARDCODED_USER_ID, habit);
+    if(newHabit) {
+      setHabits((prev) => [...prev, newHabit]);
+    }
   };
 
   const addHabitPack = (packHabits: Omit<Habit, "id" | "completed">[]) => {
-    const newHabits = packHabits.map(habit => ({
-        ...habit,
-        id: crypto.randomUUID(),
-        completed: {}
-    }));
-    setHabits(prev => [...prev, ...newHabits]);
+    packHabits.forEach(habit => {
+      addHabit(habit);
+    });
   }
 
-  const deleteHabit = (habitId: string) => {
+  const deleteHabit = async (habitId: string) => {
+    await deleteHabitService(HARDCODED_USER_ID, habitId);
     setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
   };
 
-  const updateHabit = (updatedHabit: Omit<Habit, "completed">) => {
+  const updateHabit = async (updatedHabit: Omit<Habit, "completed">) => {
+    await updateHabitService(HARDCODED_USER_ID, updatedHabit.id, updatedHabit);
     setHabits((prevHabits) =>
       prevHabits.map((habit) =>
         habit.id === updatedHabit.id ? { ...habit, ...updatedHabit } : habit
@@ -110,55 +118,43 @@ export default function DashboardPage() {
         setPoints(p => Math.max(0, p - POINTS_PER_HABIT));
     }
   }
+  
+  const updateHabitAndCompletion = async (habitId: string, updatedHabitData: Partial<Habit>) => {
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+
+    const wasCompleted = isHabitCompleted(habit, selectedDate || new Date());
+
+    await updateHabitService(HARDCODED_USER_ID, habitId, updatedHabitData);
+    
+    setHabits(prev => prev.map(h => h.id === habitId ? {...h, ...updatedHabitData} : h));
+    
+    const updatedHabit = { ...habit, ...updatedHabitData };
+    const isNowCompleted = isHabitCompleted(updatedHabit, selectedDate || new Date());
+
+    handlePointsUpdate(wasCompleted, isNowCompleted, habitId);
+  }
 
   const toggleHabitCompletion = (habitId: string, date: Date) => {
     const dateKey = format(date, "yyyy-MM-dd");
-    setHabits((prevHabits) => {
-      const habit = prevHabits.find(h => h.id === habitId);
-      if (!habit) return prevHabits;
-      
-      const wasCompleted = isHabitCompleted(habit, date);
-      
-      const newHabits = prevHabits.map((h) => {
-        if (h.id === habitId) {
-          const newCompleted = { ...h.completed };
-          newCompleted[dateKey] = newCompleted[dateKey] === 1 ? 0 : 1;
-          return { ...h, completed: newCompleted };
-        }
-        return h;
-      });
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
 
-      const updatedHabit = newHabits.find(h => h.id === habitId)!;
-      const isNowCompleted = isHabitCompleted(updatedHabit, date);
-      handlePointsUpdate(wasCompleted, isNowCompleted, habitId);
-
-      return newHabits;
-    });
+    const newCompleted = { ...habit.completed };
+    newCompleted[dateKey] = newCompleted[dateKey] === 1 ? 0 : 1;
+    
+    updateHabitAndCompletion(habitId, { completed: newCompleted });
   };
   
   const updateHabitProgress = (habitId: string, date: Date, progress: number) => {
     const dateKey = format(date, "yyyy-MM-dd");
-    setHabits((prevHabits) => {
-      const habit = prevHabits.find(h => h.id === habitId);
-      if (!habit) return prevHabits;
-
-      const wasCompleted = isHabitCompleted(habit, date);
-
-      const newHabits = prevHabits.map((h) => {
-        if (h.id === habitId) {
-          const newCompleted = { ...h.completed };
-          newCompleted[dateKey] = progress;
-          return { ...h, completed: newCompleted };
-        }
-        return h;
-      });
-
-      const updatedHabit = newHabits.find(h => h.id === habitId)!;
-      const isNowCompleted = isHabitCompleted(updatedHabit, date);
-      handlePointsUpdate(wasCompleted, isNowCompleted, habitId);
-      
-      return newHabits;
-    });
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+    
+    const newCompleted = { ...habit.completed };
+    newCompleted[dateKey] = progress;
+    
+    updateHabitAndCompletion(habitId, { completed: newCompleted });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -167,7 +163,11 @@ export default function DashboardPage() {
       setHabits((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        newOrder.forEach((habit, index) => {
+          updateHabitService(HARDCODED_USER_ID, habit.id, { order: index });
+        });
+        return newOrder;
       });
     }
   };
@@ -190,15 +190,23 @@ export default function DashboardPage() {
                 </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-6">
-                <DailyHabitList
-                    habits={habits}
-                    selectedDate={selectedDate || new Date()}
-                    toggleHabitCompletion={toggleHabitCompletion}
-                    updateHabitProgress={updateHabitProgress}
-                    deleteHabit={deleteHabit}
-                    updateHabit={updateHabit}
-                    recentlyCompletedHabit={recentlyCompletedHabit}
-                />
+                {isLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : (
+                  <DailyHabitList
+                      habits={habits}
+                      selectedDate={selectedDate || new Date()}
+                      toggleHabitCompletion={toggleHabitCompletion}
+                      updateHabitProgress={updateHabitProgress}
+                      deleteHabit={deleteHabit}
+                      updateHabit={updateHabit}
+                      recentlyCompletedHabit={recentlyCompletedHabit}
+                  />
+                )}
                 </CardContent>
                 <CardFooter>
                 <AddHabitDialog addHabit={addHabit} />

@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 interface DailyHabitListProps {
   habits: Habit[];
   selectedDate: Date;
-  toggleHabitCompletion: (habitId: string, date: Date) => void;
+  toggleHabitCompletion: (habitId: string, date: Date, microHabitId?: string) => void;
   updateHabitProgress: (habitId: string, date: Date, progress: number) => void;
   deleteHabit: (habitId: string) => void;
   updateHabit: (habit: Omit<Habit, "completed">) => void;
@@ -73,6 +73,7 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
         if (category !== 'All' && habit.category !== category) return false;
 
         if (habit.frequency === 'Daily') return true;
+        if (habit.frequency === 'Weekly') return true; // Show weekly habits on all days, but completion logic is weekly
         if (habit.frequency === 'Custom' && habit.days?.includes(dayOfWeek)) return true;
         if (habit.frequency === 'Every-n-days' && habit.interval && habit.startDate) {
             const start = parseISO(habit.startDate);
@@ -90,7 +91,7 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
                 if (progress !== undefined) {
                     if (habit.trackingType === 'Checkbox' && progress === 1) {
                         completedInWeek++;
-                    } else if (habit.trackingType === 'Quantitative' && habit.goalValue && progress >= habit.goalValue) {
+                    } else if (habit.trackingType === 'Quantitative' && habit.goalValue && typeof progress === 'number' && progress >= habit.goalValue) {
                         completedInWeek++;
                     }
                 }
@@ -127,7 +128,7 @@ export function DailyHabitList({ habits, selectedDate, toggleHabitCompletion, up
         const overHabit = habits.find(h => h.id === over.id);
 
         if (activeHabit?.timeOfDay !== overHabit?.timeOfDay) {
-            // Prevent dragging between different time-of-day groups
+            // Prevent dragging between different time-of-day groups for now
             return;
         }
       

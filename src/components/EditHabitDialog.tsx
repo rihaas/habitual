@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Habit, MicroHabit } from '@/lib/types';
+import type { Habit } from '@/lib/types';
 import { TimeOfDayEnum } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
@@ -144,7 +144,7 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const habitData: Omit<Habit, 'id' | 'completed'> = {
-      ...habit,
+      id: habit.id,
       name: values.name,
       category: values.category,
       priority: values.priority,
@@ -154,34 +154,31 @@ export function EditHabitDialog({ habit, updateHabit, isOpen, setIsOpen, categor
       microHabits: values.microHabits,
     };
     
-    delete habitData.days;
-    delete habitData.timesPerWeek;
-    delete habitData.interval;
-    delete habitData.goalValue;
-    delete habitData.goalUnit;
-    // We don't reset start date on edit
+    // We don't want to carry over old frequency-specific values
+    // if the frequency has changed.
+    const newHabitData = { ...habitData };
 
     if (values.frequency === 'Custom') {
-      habitData.days = values.days;
+      newHabitData.days = values.days;
     }
     if (values.frequency === 'N-times-week') {
-        habitData.timesPerWeek = values.timesPerWeek;
+        newHabitData.timesPerWeek = values.timesPerWeek;
     }
     if (values.frequency === 'Every-n-days') {
-        habitData.interval = values.interval;
+        newHabitData.interval = values.interval;
         if (!habit.startDate) {
-          habitData.startDate = format(new Date(), 'yyyy-MM-dd');
+          newHabitData.startDate = format(new Date(), 'yyyy-MM-dd');
         }
     }
     if (values.trackingType === 'Quantitative') {
-        habitData.goalValue = values.goalValue;
-        habitData.goalUnit = values.goalUnit;
+        newHabitData.goalValue = values.goalValue;
+        newHabitData.goalUnit = values.goalUnit;
     } else {
-        habitData.microHabits = values.microHabits;
+        newHabitData.microHabits = values.microHabits;
     }
 
 
-    updateHabit(habitData);
+    updateHabit(newHabitData);
     toast({
       title: 'Habit Updated!',
       description: `"${values.name}" has been updated.`,

@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { Progress } from './ui/progress';
+import { HabitTrendIndicator } from './HabitTrendIndicator';
 
 interface HabitItemProps {
   habit: Habit;
@@ -51,7 +52,8 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
 
   const isCompleted = React.useMemo(() => {
     if (hasMicroHabits) {
-        const microHabitCompletions = typeof completionData === 'object' ? completionData : {};
+        if (typeof completionData !== 'object') return false;
+        const microHabitCompletions = completionData || {};
         return habit.microHabits?.every(mh => microHabitCompletions[mh.id]);
     }
     if (habit.trackingType === 'Checkbox') {
@@ -142,16 +144,19 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
         ) : null}
         
         <div className="flex-1">
-          <label
-            htmlFor={hasMicroHabits ? undefined : `habit-${habit.id}-${dateKey}`}
-            className={cn(
-              'text-sm font-medium leading-none',
-              isCompleted && !hasMicroHabits ? 'line-through text-muted-foreground' : 'text-foreground',
-              !hasMicroHabits && 'cursor-pointer'
-            )}
-          >
-            {habit.name}
-          </label>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor={hasMicroHabits ? undefined : `habit-${habit.id}-${dateKey}`}
+              className={cn(
+                'text-sm font-medium leading-none',
+                isCompleted && !hasMicroHabits ? 'line-through text-muted-foreground' : 'text-foreground',
+                !hasMicroHabits && 'cursor-pointer'
+              )}
+            >
+              {habit.name}
+            </label>
+            <HabitTrendIndicator habit={habit} />
+          </div>
            {habit.trackingType === 'Quantitative' && habit.goalValue && (
                 <p className="text-xs text-muted-foreground">
                     Goal: {habit.goalValue} {habit.goalUnit}
@@ -192,7 +197,12 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
                 </AlertDialogContent>
             </AlertDialog>
             {hasMicroHabits && (
-                 <ChevronDown className={cn("h-4 w-4 transition-transform", isCollapsibleOpen && "rotate-180")} />
+                 <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", isCollapsibleOpen && "rotate-180")} />
+                        <span className="sr-only">Toggle Micro-habits</span>
+                    </Button>
+                 </CollapsibleTrigger>
             )}
         </div>
       </div>
@@ -202,12 +212,12 @@ export default function HabitItem({ habit, selectedDate, toggleHabitCompletion, 
     <>
       {hasMicroHabits ? (
         <Collapsible open={isCollapsibleOpen} onOpenChange={setIsCollapsibleOpen} className={cn('rounded-lg', isCompleted ? 'bg-primary/20' : 'bg-card hover:bg-accent')}>
-            <CollapsibleTrigger asChild>
+            <div className="p-2">
                 {mainContent}
-            </CollapsibleTrigger>
+            </div>
             <CollapsibleContent className="space-y-2 px-4 pb-3 pl-14">
                 {habit.microHabits?.map(mh => {
-                    const microHabitCompletions = typeof completionData === 'object' ? completionData : {};
+                    const microHabitCompletions = typeof completionData === 'object' && completionData ? completionData : {};
                     const isMicroHabitCompleted = microHabitCompletions[mh.id] || false;
                     return (
                         <div key={mh.id} className="flex items-center space-x-3">
